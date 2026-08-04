@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Row, Col, Card, Button, Modal, Form, Input, Space, Divider, Select, AutoComplete } from "antd";
+import { Row, Col, Card, Button, Modal, Form, Input, Space, Divider, AutoComplete } from "antd";
 import { CheckCircleOutlined, PlusOutlined, CrownOutlined, EditOutlined, DeleteOutlined, MinusCircleOutlined } from "@ant-design/icons";
 
 
@@ -109,13 +109,19 @@ export default function SubscriptionPage() {
         onOk={() => form.submit()}
       >
         <Form form={form} layout="vertical" onFinish={onFinish}>
-          <Form.Item name="name" label="Plan Name" rules={[{ required: true, message: "Please select a plan name" }]}>
-            <Select placeholder="Select a plan">
-              <Select.Option value="Starter">Starter</Select.Option>
-              <Select.Option value="Pro">Pro</Select.Option>
-              <Select.Option value="Enterprise">Enterprise</Select.Option>
-              <Select.Option value="Custom">Custom</Select.Option>
-            </Select>
+          <Form.Item name="name" label="Plan Name" rules={[{ required: true, message: "Please enter or select a plan name" }]}>
+            <AutoComplete
+              placeholder="Select or type a plan name"
+              options={[
+                { value: "Starter" },
+                { value: "Pro" },
+                { value: "Enterprise" },
+                { value: "Custom" },
+              ]}
+              filterOption={(inputValue, option) =>
+                (option?.value as string).toLowerCase().includes(inputValue.toLowerCase())
+              }
+            />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
