@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     // 6. Update last login
     await tenantSql`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`;
 
-    const response = NextResponse.json({ message: 'Login successful' });
+    const response = NextResponse.json({ accessToken, refreshToken });
     
     // Set HttpOnly Cookies
     const isProd = process.env.NODE_ENV === 'production';
@@ -81,8 +81,7 @@ export async function POST(req: Request) {
       httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 30 * 24 * 60 * 60, path: '/api/v1/auth/refresh'
     });
 
-    // Also return refresh token for Flutter app which uses secure storage instead of cookies
-    return NextResponse.json({ accessToken, refreshToken });
+    return response;
   } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

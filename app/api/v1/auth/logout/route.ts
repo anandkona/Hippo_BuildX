@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { revokeSession } from '@/lib/auth/session';
 import { extractContextFromHeaders } from '@/lib/tenant-context';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const context = extractContextFromHeaders(req.headers);
     if (!context.schemaName) {

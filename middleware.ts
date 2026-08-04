@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 
-// Define the public routes that do not require authentication
-const PUBLIC_ROUTES = [
+// Public API routes that do not require authentication
+const PUBLIC_API_ROUTES = [
   '/api/v1/health',
   '/api/v1/health/ready',
   '/api/v1/auth/login',
@@ -11,18 +11,18 @@ const PUBLIC_ROUTES = [
   '/api/v1/platform/auth/login',
 ];
 
+// Public page routes (no auth required)
+const PUBLIC_PAGE_ROUTES = ['/login'];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // We only intercept /api/v1 routes in this middleware.
-  // We leave Next.js pages untouched for now (they can handle auth in layouts/pages).
+  // --- API route protection ---
   if (pathname.startsWith('/api/v1')) {
-    // 1. Bypass public routes
-    if (PUBLIC_ROUTES.includes(pathname)) {
+    if (PUBLIC_API_ROUTES.includes(pathname)) {
       return NextResponse.next();
     }
 
-    // 2. Extract JWT token from HttpOnly cookie or Authorization header
     let token = request.cookies.get('access_token')?.value;
     if (!token) {
       const authHeader = request.headers.get('authorization');
@@ -31,7 +31,6 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // 3. Verify token
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
     }
@@ -41,14 +40,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized: Invalid or expired token' }, { status: 401 });
     }
 
-    // 4. Platform Super Admin protection
     if (pathname.startsWith('/api/v1/platform') && !payload.isPlatformAdmin) {
       return NextResponse.json({ error: 'Forbidden: Platform Admin access required' }, { status: 403 });
     }
 
-    // 5. Inject headers for downstream Next.js Route Handlers
-    // Since we use AsyncLocalStorage in Route Handlers, they will read these headers
-    // to initialize the tenant context.
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-tenant-id', payload.tenantId);
     requestHeaders.set('x-schema-name', payload.schemaName);
@@ -56,16 +51,39 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-roles', JSON.stringify(payload.roles || []));
     requestHeaders.set('x-is-platform-admin', String(payload.isPlatformAdmin || false));
 
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
+  // --- Page route protection ---
+  // Allow public pages
+  if (PUBLIC_PAGE_ROUTES.includes(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Allow static assets
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.includes('.')) {
+    return NextResponse.next();
+  }
+
+  // Check for access_token cookie on page routes
+  const token = request.cookies.get('access_token')?.value;
+  if (!token) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('from', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Verify the token is still valid
+  const payload = await verifyAccessToken(token);
+  if (!payload) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('from', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/api/v1/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

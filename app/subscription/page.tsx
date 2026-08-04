@@ -142,7 +142,7 @@ export default function SubscriptionPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Divider orientation="left">Features</Divider>
+          <Divider>Features</Divider>
           <Form.List name="features">
             {(fields, { add, remove }) => (
               <>

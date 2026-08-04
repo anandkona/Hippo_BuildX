@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getDb, createTenantSql } from '@/lib/db/client';
 import { tenants } from '@/lib/db/schema/control-plane';
 import { eq } from 'drizzle-orm';
 import { hashToken, createSession, revokeSession } from '@/lib/auth/session';
 import { signAccessToken } from '@/lib/auth/jwt';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     let refreshToken = req.cookies.get('refresh_token')?.value;
 

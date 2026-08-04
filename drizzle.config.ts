@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 export default defineConfig({
-  schema: './lib/db/schema/control-plane.ts',
+  schema: ['./lib/db/schema/control-plane.ts', './lib/db/schema/tenant.ts'],
   out: './lib/db/migrations',
   dialect: 'postgresql',
   dbCredentials: {

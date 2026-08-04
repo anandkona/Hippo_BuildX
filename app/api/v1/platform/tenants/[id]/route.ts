@@ -4,10 +4,15 @@ import { tenants } from '@/lib/db/schema/control-plane';
 import { eq } from 'drizzle-orm';
 import { provisionTenantQueue } from '@/lib/queue';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+export async function GET(_req: Request, { params }: RouteContext) {
   try {
+    const { id } = await params;
     const db = getDb();
-    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, params.id));
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ tenant });
   } catch (error) {
@@ -15,10 +20,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, { params }: RouteContext) {
   try {
+    const { id } = await params;
     const db = getDb();
-    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, params.id));
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     if (tenant.status === 'active') {
@@ -26,7 +32,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     // Set status back to provisioning and enqueue
-    await db.update(tenants).set({ status: 'provisioning' }).where(eq(tenants.id, params.id));
+    await db.update(tenants).set({ status: 'provisioning' }).where(eq(tenants.id, id));
     await provisionTenantQueue.add('provision', { tenantId: tenant.id, schemaName: tenant.schemaName, name: tenant.name });
 
     return NextResponse.json({ message: 'Tenant provisioning retried' });

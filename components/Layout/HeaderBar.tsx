@@ -48,9 +48,12 @@ export default function HeaderBar() {
     },
   ];
 
-  const handleUserMenuClick = (e: { key: string }) => {
+  const handleUserMenuClick = async (e: { key: string }) => {
     if (e.key === "logout") {
-      console.log("Logging out...");
+      try {
+        await fetch("/api/v1/auth/logout", { method: "POST" });
+      } catch {}
+      router.push("/login");
     } else {
       router.push(`/${e.key}`);
     }
@@ -61,6 +64,7 @@ export default function HeaderBar() {
     { key: "/sales", label: "Sales" },
     { key: "/subscription", label: "Subscription Plan" },
     { key: "/clients", label: "Clients" },
+    { key: "/admin/users", label: "Admin" },
   ];
 
   const handleTopMenuClick = (e: { key: string }) => {
