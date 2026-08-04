@@ -1,6 +1,7 @@
 import { getSql, getDb } from '@/lib/db/client';
 import { tenants } from '@/lib/db/schema/control-plane';
 import { eq } from 'drizzle-orm';
+import { migrateTenant } from '@/lib/db/migrate-tenant';
 
 interface ProvisionJobData {
   tenantId: string;
@@ -18,8 +19,8 @@ export async function handleProvisionTenant(data: ProvisionJobData) {
     // 1. Create the database schema
     await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
 
-    // 2. We would normally run drizzle migrations targeting this schema here.
-    // Example: await migrate(createTenantDb(schemaName), { migrationsFolder: 'drizzle/tenant' });
+    // 2. Run drizzle migrations targeting this schema
+    await migrateTenant(schemaName);
     console.log(`[Provisioning] Applied migrations for ${schemaName}`);
 
     // 3. Update the tenant status to active

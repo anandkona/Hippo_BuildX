@@ -56,6 +56,13 @@ export function createTenantSql(schemaName: string) {
     });
   };
 
+  tenantQuery.begin = async (callback: (tx: postgres.TransactionSql) => Promise<any>) => {
+    return sql.begin(async (tx) => {
+      await tx.unsafe(`SET LOCAL search_path TO "${schemaName}", public`);
+      return callback(tx);
+    });
+  };
+
   tenantQuery.schemaName = schemaName;
   return tenantQuery;
 }
@@ -70,7 +77,12 @@ export function createTenantDb(schemaName: string) {
   }
   
   const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/build_ex';
-  const tenantClient = postgres(DATABASE_URL, {
+  
+  // Append application_name to ensure postgres.js creates a unique pool per schema
+  const urlWithApp = new URL(DATABASE_URL);
+  urlWithApp.searchParams.set('application_name', schemaName);
+  
+  const tenantClient = postgres(urlWithApp.toString(), {
     max: 5,
     connection: {
       search_path: `${schemaName},public`,
