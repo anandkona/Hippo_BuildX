@@ -61,10 +61,7 @@ export default function HeaderBar() {
 
   const topMenuItems = [
     { key: "/dashboard", label: "Dashboard" },
-    { key: "/sales", label: "Sales" },
-    { key: "/subscription", label: "Subscription Plan" },
-    { key: "/clients", label: "Clients" },
-    { key: "/admin/users", label: "Admin" },
+    { key: "/admin/users", label: "Administration" },
   ];
 
   const handleTopMenuClick = (e: { key: string }) => {

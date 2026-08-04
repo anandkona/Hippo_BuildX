@@ -14,13 +14,23 @@ import {
   Card,
   Popconfirm,
   Spin,
+  Empty,
+  Typography,
+  Tooltip,
+  Collapse,
 } from "antd";
 import {
   SearchOutlined,
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
+  ReloadOutlined,
+  LockOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
+
+const { Text } = Typography;
+const { Panel } = Collapse;
 
 const PERMISSION_MODULES = [
   "users",
@@ -36,6 +46,19 @@ const PERMISSION_MODULES = [
 ];
 
 const PERMISSION_ACTIONS = ["create", "read", "update", "delete", "approve", "export"];
+
+const MODULE_LABELS: Record<string, string> = {
+  users: "User Management",
+  roles: "Role Management",
+  projects: "Projects",
+  crm: "CRM",
+  inventory: "Inventory",
+  procurement: "Procurement",
+  accounting: "Accounting",
+  hrms: "HRMS",
+  settings: "Settings",
+  channels: "Notification Channels",
+};
 
 interface Role {
   id: string;
@@ -151,7 +174,7 @@ export default function RolesPage() {
       <Space size={[0, 4]} wrap>
         {Object.entries(grouped).map(([mod, perms]) => (
           <Tag key={mod} color="blue">
-            {mod} ({perms.length})
+            {MODULE_LABELS[mod] || mod} ({perms.length})
           </Tag>
         ))}
       </Space>
@@ -160,43 +183,72 @@ export default function RolesPage() {
 
   const columns = [
     {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
-      sorter: (a: Role, b: Role) => a.name.localeCompare(b.name),
-    },
-    {
-      title: "Description",
-      dataIndex: "description",
-      key: "description",
-      ellipsis: true,
+      title: "Role",
+      key: "role",
+      render: (_: unknown, record: Role) => (
+        <Space>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              background: record.is_system ? "#fff7e6" : "#e6f7ff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {record.is_system ? (
+              <LockOutlined style={{ color: "#faad14" }} />
+            ) : (
+              <SafetyCertificateOutlined style={{ color: "#1890ff" }} />
+            )}
+          </div>
+          <div>
+            <div style={{ fontWeight: 500 }}>{record.name}</div>
+            {record.description && (
+              <Text type="secondary" style={{ fontSize: 12 }}>{record.description}</Text>
+            )}
+          </div>
+        </Space>
+      ),
     },
     {
       title: "Permissions",
       dataIndex: "permissions",
       key: "permissions",
       render: (permissions: string[]) => (
-        <span>{permissions?.length ?? 0}</span>
+        <Space>
+          <Tag>{permissions?.length ?? 0} permissions</Tag>
+          {permissions?.length > 0 && renderPermissionTags(permissions)}
+        </Space>
       ),
     },
     {
-      title: "System",
+      title: "Type",
       dataIndex: "is_system",
       key: "is_system",
       width: 100,
       render: (isSystem: boolean) =>
-        isSystem ? <Tag color="orange">System</Tag> : <Tag>Custom</Tag>,
+        isSystem ? (
+          <Tag icon={<LockOutlined />} color="warning">System</Tag>
+        ) : (
+          <Tag color="default">Custom</Tag>
+        ),
     },
     {
       title: "Actions",
       key: "actions",
+      width: 100,
       render: (_: unknown, record: Role) => (
-        <Space>
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          />
+        <Space size="small">
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            />
+          </Tooltip>
           <Popconfirm
             title="Delete role"
             description={
@@ -209,12 +261,14 @@ export default function RolesPage() {
             cancelText="No"
             disabled={record.is_system}
           >
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              disabled={record.is_system}
-            />
+            <Tooltip title={record.is_system ? "Cannot delete system role" : "Delete"}>
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                disabled={record.is_system}
+              />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -223,13 +277,24 @@ export default function RolesPage() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>
-        Roles & Permissions
-      </h2>
-      <Card
-        bordered={false}
-        style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
-      >
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <Typography.Title level={4} style={{ margin: 0 }}>Roles & Permissions</Typography.Title>
+            <Text type="secondary">Manage roles and their associated permissions</Text>
+          </div>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={fetchRoles}>
+              Refresh
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+              Add Role
+            </Button>
+          </Space>
+        </div>
+      </div>
+
+      <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
         <div
           style={{
             display: "flex",
@@ -240,15 +305,13 @@ export default function RolesPage() {
           }}
         >
           <Input
-            placeholder="Search roles..."
+            placeholder="Search by name or description..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 300 }}
+            allowClear
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            Add Role
-          </Button>
         </div>
 
         <Spin spinning={loading}>
@@ -256,8 +319,23 @@ export default function RolesPage() {
             columns={columns}
             dataSource={filteredRoles}
             rowKey="id"
-            pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `${t} roles` }}
-            scroll={{ x: "max-content" }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (t) => `${t} role${t !== 1 ? "s" : ""}`,
+            }}
+            locale={{
+              emptyText: (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="No roles found"
+                >
+                  <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+                    Add Role
+                  </Button>
+                </Empty>
+              ),
+            }}
           />
         </Spin>
       </Card>
@@ -280,24 +358,31 @@ export default function RolesPage() {
             <Input placeholder="e.g. Project Manager" />
           </Form.Item>
           <Form.Item name="description" label="Description">
-            <Input.TextArea rows={2} placeholder="Role description" />
+            <Input.TextArea rows={2} placeholder="Brief description of this role" />
           </Form.Item>
           <Form.Item name="permissions" label="Permissions">
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <Collapse ghost>
               {PERMISSION_MODULES.map((mod) => (
-                <div key={mod}>
-                  <div style={{ fontWeight: 600, marginBottom: 4, textTransform: "capitalize" }}>
-                    {mod}
-                  </div>
+                <Panel
+                  key={mod}
+                  header={
+                    <Space>
+                      <span style={{ fontWeight: 500, textTransform: "capitalize" }}>
+                        {MODULE_LABELS[mod] || mod}
+                      </span>
+                      <Tag>{PERMISSION_ACTIONS.length} permissions</Tag>
+                    </Space>
+                  }
+                >
                   <Checkbox.Group
                     options={PERMISSION_ACTIONS.map((action) => ({
                       label: action.charAt(0).toUpperCase() + action.slice(1),
                       value: `${mod}:${action}`,
                     }))}
                   />
-                </div>
+                </Panel>
               ))}
-            </div>
+            </Collapse>
           </Form.Item>
         </Form>
       </Modal>

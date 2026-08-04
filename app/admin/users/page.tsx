@@ -14,6 +14,10 @@ import {
   Card,
   Popconfirm,
   Spin,
+  Empty,
+  Typography,
+  Avatar,
+  Tooltip,
 } from "antd";
 import {
   SearchOutlined,
@@ -21,9 +25,12 @@ import {
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
+  UserOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 
 const { Option } = Select;
+const { Text } = Typography;
 
 interface User {
   id: string;
@@ -149,15 +156,20 @@ export default function UsersPage() {
 
   const columns = [
     {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
-      sorter: (a: User, b: User) => a.name.localeCompare(b.name),
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
+      title: "User",
+      key: "user",
+      render: (_: unknown, record: User) => (
+        <Space>
+          <Avatar
+            style={{ backgroundColor: "#1890ff" }}
+            icon={<UserOutlined />}
+          />
+          <div>
+            <div style={{ fontWeight: 500 }}>{record.name}</div>
+            <Text type="secondary" style={{ fontSize: 12 }}>{record.email}</Text>
+          </div>
+        </Space>
+      ),
     },
     {
       title: "Status",
@@ -169,8 +181,8 @@ export default function UsersPage() {
       ],
       onFilter: (value: unknown, record: User) => record.status === value,
       render: (status: string) => (
-        <Tag color={status === "active" ? "green" : "red"}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+        <Tag color={status === "active" ? "success" : "error"}>
+          {status === "active" ? "Active" : "Inactive"}
         </Tag>
       ),
     },
@@ -180,29 +192,38 @@ export default function UsersPage() {
       key: "roles",
       render: (roles: string[]) => (
         <Space size={[0, 4]} wrap>
-          {roles?.map((role) => (
-            <Tag key={role} color="blue">
-              {role}
-            </Tag>
-          ))}
+          {roles?.length > 0 ? (
+            roles.map((role) => (
+              <Tag key={role} color="blue">
+                {role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+              </Tag>
+            ))
+          ) : (
+            <Text type="secondary">No roles</Text>
+          )}
         </Space>
       ),
     },
     {
       title: "Actions",
       key: "actions",
+      width: 120,
       render: (_: unknown, record: User) => (
-        <Space>
-          <Button
-            type="text"
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-          />
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          />
+        <Space size="small">
+          <Tooltip title="View">
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => handleView(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            />
+          </Tooltip>
           <Popconfirm
             title="Delete user"
             description="Are you sure you want to delete this user?"
@@ -210,7 +231,9 @@ export default function UsersPage() {
             okText="Yes"
             cancelText="No"
           >
-            <Button type="text" danger icon={<DeleteOutlined />} />
+            <Tooltip title="Delete">
+              <Button type="text" danger icon={<DeleteOutlined />} />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -219,13 +242,24 @@ export default function UsersPage() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>
-        Tenant Users
-      </h2>
-      <Card
-        bordered={false}
-        style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
-      >
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <Typography.Title level={4} style={{ margin: 0 }}>Users</Typography.Title>
+            <Text type="secondary">Manage user accounts and their roles</Text>
+          </div>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={fetchUsers}>
+              Refresh
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+              Add User
+            </Button>
+          </Space>
+        </div>
+      </div>
+
+      <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
         <div
           style={{
             display: "flex",
@@ -236,15 +270,13 @@ export default function UsersPage() {
           }}
         >
           <Input
-            placeholder="Search users..."
+            placeholder="Search by name or email..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 300 }}
+            allowClear
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            Add User
-          </Button>
         </div>
 
         <Spin spinning={loading}>
@@ -252,8 +284,23 @@ export default function UsersPage() {
             columns={columns}
             dataSource={filteredUsers}
             rowKey="id"
-            pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `${t} users` }}
-            scroll={{ x: "max-content" }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (t) => `${t} user${t !== 1 ? "s" : ""}`,
+            }}
+            locale={{
+              emptyText: (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="No users found"
+                >
+                  <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+                    Add User
+                  </Button>
+                </Empty>
+              ),
+            }}
           />
         </Spin>
       </Card>
@@ -265,18 +312,19 @@ export default function UsersPage() {
         onCancel={() => setModalOpen(false)}
         confirmLoading={submitting}
         destroyOnClose
+        width={480}
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="name"
-            label="Name"
+            label="Full Name"
             rules={[{ required: true, message: "Please enter a name" }]}
           >
-            <Input placeholder="Full name" />
+            <Input placeholder="Enter full name" prefix={<UserOutlined />} />
           </Form.Item>
           <Form.Item
             name="email"
-            label="Email"
+            label="Email Address"
             rules={[
               { required: true, message: "Please enter an email" },
               { type: "email", message: "Invalid email format" },
@@ -288,9 +336,12 @@ export default function UsersPage() {
             <Form.Item
               name="password"
               label="Password"
-              rules={[{ required: true, message: "Please enter a password" }]}
+              rules={[
+                { required: true, message: "Please enter a password" },
+                { min: 6, message: "Password must be at least 6 characters" },
+              ]}
             >
-              <Input.Password placeholder="Password" />
+              <Input.Password placeholder="Enter password" />
             </Form.Item>
           )}
           {editingUser && (
@@ -301,11 +352,15 @@ export default function UsersPage() {
               </Select>
             </Form.Item>
           )}
-          <Form.Item name="roles" label="Roles" rules={[{ required: true, message: "Please select at least one role" }]}>
+          <Form.Item
+            name="roles"
+            label="Roles"
+            rules={[{ required: true, message: "Please select at least one role" }]}
+          >
             <Select mode="multiple" placeholder="Select roles">
               {roles.map((role) => (
                 <Option key={role.id} value={role.name}>
-                  {role.name}
+                  {role.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                 </Option>
               ))}
             </Select>
@@ -322,33 +377,34 @@ export default function UsersPage() {
             Close
           </Button>,
         ]}
+        width={480}
       >
         {viewingUser && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <strong>Name:</strong> {viewingUser.name}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ textAlign: "center", paddingBottom: 16, borderBottom: "1px solid #f0f0f0" }}>
+              <Avatar size={64} icon={<UserOutlined />} style={{ backgroundColor: "#1890ff", marginBottom: 12 }} />
+              <div style={{ fontSize: 18, fontWeight: 600 }}>{viewingUser.name}</div>
+              <Text type="secondary">{viewingUser.email}</Text>
             </div>
-            <div>
-              <strong>Email:</strong> {viewingUser.email}
-            </div>
-            <div>
-              <strong>Status:</strong>{" "}
-              <Tag color={viewingUser.status === "active" ? "green" : "red"}>
-                {viewingUser.status.charAt(0).toUpperCase() + viewingUser.status.slice(1)}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <Text type="secondary">Status</Text>
+              <Tag color={viewingUser.status === "active" ? "success" : "error"}>
+                {viewingUser.status === "active" ? "Active" : "Inactive"}
               </Tag>
             </div>
-            <div>
-              <strong>Roles:</strong>{" "}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <Text type="secondary">Roles</Text>
               <Space size={[0, 4]} wrap>
                 {viewingUser.roles?.map((role) => (
                   <Tag key={role} color="blue">
-                    {role}
+                    {role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   </Tag>
                 ))}
               </Space>
             </div>
-            <div>
-              <strong>Created:</strong> {new Date(viewingUser.created_at).toLocaleDateString()}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <Text type="secondary">Created</Text>
+              <Text>{new Date(viewingUser.created_at).toLocaleDateString()}</Text>
             </div>
           </div>
         )}

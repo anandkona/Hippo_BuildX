@@ -14,10 +14,14 @@ import {
   Spin,
   ColorPicker,
   Divider,
+  Typography,
+  Space,
+  Tag,
 } from "antd";
-import { SaveOutlined } from "@ant-design/icons";
+import { SaveOutlined, ReloadOutlined, GlobalOutlined, BulbOutlined, AppstoreOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
+const { Text } = Typography;
 
 interface TenantSettings {
   company_name: string;
@@ -49,6 +53,14 @@ const defaultSettings: TenantSettings = {
     procurement: true,
     accounting: true,
   },
+};
+
+const FEATURE_LABELS: Record<string, string> = {
+  crm: "Customer Relationship Management",
+  hrms: "Human Resource Management",
+  inventory: "Inventory Management",
+  procurement: "Procurement Management",
+  accounting: "Accounting & Finance",
 };
 
 export default function AdminSettingsPage() {
@@ -115,7 +127,7 @@ export default function AdminSettingsPage() {
 
   const cardStyle = {
     borderRadius: 12,
-    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
     marginBottom: 24,
   };
 
@@ -129,29 +141,39 @@ export default function AdminSettingsPage() {
           marginBottom: 24,
         }}
       >
-        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
-          Tenant Settings
-        </h2>
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={handleSave}
-          loading={saving}
-          size="large"
-        >
-          Save Settings
-        </Button>
+        <div>
+          <Typography.Title level={4} style={{ margin: 0 }}>Settings</Typography.Title>
+          <Text type="secondary">Configure your tenant workspace</Text>
+        </div>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={fetchSettings}>
+            Refresh
+          </Button>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleSave}
+            loading={saving}
+          >
+            Save Settings
+          </Button>
+        </Space>
       </div>
 
       <Spin spinning={loading}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={settings}
-        >
+        <Form form={form} layout="vertical" initialValues={settings}>
           <Row gutter={24}>
             <Col xs={24} lg={12}>
-              <Card title="General" bordered={false} style={cardStyle}>
+              <Card
+                title={
+                  <Space>
+                    <GlobalOutlined />
+                    <span>General</span>
+                  </Space>
+                }
+                bordered={false}
+                style={cardStyle}
+              >
                 <Form.Item
                   name="company_name"
                   label="Company Name"
@@ -192,7 +214,16 @@ export default function AdminSettingsPage() {
                 </Row>
               </Card>
 
-              <Card title="Branding" bordered={false} style={cardStyle}>
+              <Card
+                title={
+                  <Space>
+                    <BulbOutlined />
+                    <span>Branding</span>
+                  </Space>
+                }
+                bordered={false}
+                style={cardStyle}
+              >
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item name="primary_color" label="Primary Color">
@@ -227,7 +258,7 @@ export default function AdminSettingsPage() {
                         }}
                       />
                     ) : (
-                      <span style={{ color: "#bbb" }}>No logo set</span>
+                      <Text type="secondary">No logo set</Text>
                     )}
                   </div>
                 </Form.Item>
@@ -235,44 +266,39 @@ export default function AdminSettingsPage() {
             </Col>
 
             <Col xs={24} lg={12}>
-              <Card title="Feature Flags" bordered={false} style={cardStyle}>
-                <p style={{ color: "#888", marginBottom: 16 }}>
+              <Card
+                title={
+                  <Space>
+                    <AppstoreOutlined />
+                    <span>Feature Flags</span>
+                  </Space>
+                }
+                bordered={false}
+                style={cardStyle}
+              >
+                <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
                   Toggle modules on or off for this tenant.
-                </p>
-                <Form.Item name={["feature_flags", "crm"]} valuePropName="checked" label={null}>
-                  <div style={toggleRowStyle}>
-                    <span style={toggleLabelStyle}>CRM</span>
-                    <Switch />
-                  </div>
-                </Form.Item>
-                <Divider style={{ margin: "8px 0" }} />
-                <Form.Item name={["feature_flags", "hrms"]} valuePropName="checked" label={null}>
-                  <div style={toggleRowStyle}>
-                    <span style={toggleLabelStyle}>HRMS</span>
-                    <Switch />
-                  </div>
-                </Form.Item>
-                <Divider style={{ margin: "8px 0" }} />
-                <Form.Item name={["feature_flags", "inventory"]} valuePropName="checked" label={null}>
-                  <div style={toggleRowStyle}>
-                    <span style={toggleLabelStyle}>Inventory</span>
-                    <Switch />
-                  </div>
-                </Form.Item>
-                <Divider style={{ margin: "8px 0" }} />
-                <Form.Item name={["feature_flags", "procurement"]} valuePropName="checked" label={null}>
-                  <div style={toggleRowStyle}>
-                    <span style={toggleLabelStyle}>Procurement</span>
-                    <Switch />
-                  </div>
-                </Form.Item>
-                <Divider style={{ margin: "8px 0" }} />
-                <Form.Item name={["feature_flags", "accounting"]} valuePropName="checked" label={null}>
-                  <div style={toggleRowStyle}>
-                    <span style={toggleLabelStyle}>Accounting</span>
-                    <Switch />
-                  </div>
-                </Form.Item>
+                </Text>
+                {Object.entries(settings.feature_flags).map(([key, value], index) => (
+                  <React.Fragment key={key}>
+                    <Form.Item name={["feature_flags", key]} valuePropName="checked" label={null}>
+                      <div style={toggleRowStyle}>
+                        <div>
+                          <span style={toggleLabelStyle}>
+                            {key.toUpperCase()}
+                          </span>
+                          <Text type="secondary" style={{ display: "block", fontSize: 12 }}>
+                            {FEATURE_LABELS[key] || key}
+                          </Text>
+                        </div>
+                        <Switch />
+                      </div>
+                    </Form.Item>
+                    {index < Object.keys(settings.feature_flags).length - 1 && (
+                      <Divider style={{ margin: "8px 0" }} />
+                    )}
+                  </React.Fragment>
+                ))}
               </Card>
             </Col>
           </Row>

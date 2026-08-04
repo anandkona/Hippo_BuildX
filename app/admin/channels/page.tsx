@@ -16,15 +16,23 @@ import {
   Spin,
   Space,
   Tag,
+  Typography,
+  Empty,
+  Tooltip,
+  Badge,
 } from "antd";
 import {
   WhatsAppOutlined,
   MailOutlined,
   MessageOutlined,
   SettingOutlined,
+  ReloadOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
 } from "@ant-design/icons";
 
 const { Option } = Select;
+const { Text } = Typography;
 
 interface ChannelConfig {
   whatsapp?: {
@@ -54,10 +62,22 @@ interface Channel {
   config: ChannelConfig;
 }
 
-const channelMeta: Record<string, { icon: React.ReactNode; color: string }> = {
-  whatsapp: { icon: <WhatsAppOutlined style={{ fontSize: 24 }} />, color: "#25d366" },
-  email: { icon: <MailOutlined style={{ fontSize: 24 }} />, color: "#1890ff" },
-  sms: { icon: <MessageOutlined style={{ fontSize: 24 }} />, color: "#faad14" },
+const channelMeta: Record<string, { icon: React.ReactNode; color: string; description: string }> = {
+  whatsapp: {
+    icon: <WhatsAppOutlined style={{ fontSize: 24 }} />,
+    color: "#25d366",
+    description: "Send notifications via WhatsApp Business API",
+  },
+  email: {
+    icon: <MailOutlined style={{ fontSize: 24 }} />,
+    color: "#1890ff",
+    description: "Send email notifications via SMTP",
+  },
+  sms: {
+    icon: <MessageOutlined style={{ fontSize: 24 }} />,
+    color: "#faad14",
+    description: "Send SMS notifications via provider",
+  },
 };
 
 export default function ChannelsPage() {
@@ -148,6 +168,7 @@ export default function ChannelsPage() {
   const renderChannelCard = (type: "whatsapp" | "email" | "sms") => {
     const channel = getChannel(type);
     const meta = channelMeta[type];
+    const isConfigured = channel && Object.keys(channel.config?.[type] ?? {}).length > 0;
 
     return (
       <Card
@@ -155,7 +176,7 @@ export default function ChannelsPage() {
         bordered={false}
         style={{
           borderRadius: 12,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
           height: "100%",
         }}
       >
@@ -178,9 +199,16 @@ export default function ChannelsPage() {
               </div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 16 }}>{channel?.name ?? type}</div>
-                <Tag color={channel?.is_active ? "green" : "default"} style={{ marginTop: 4 }}>
-                  {channel?.is_active ? "Active" : "Inactive"}
-                </Tag>
+                <Space size={4}>
+                  <Tag color={channel?.is_active ? "success" : "default"}>
+                    {channel?.is_active ? "Active" : "Inactive"}
+                  </Tag>
+                  {isConfigured ? (
+                    <Tag icon={<CheckCircleOutlined />} color="success">Configured</Tag>
+                  ) : (
+                    <Tag icon={<CloseCircleOutlined />} color="warning">Not Configured</Tag>
+                  )}
+                </Space>
               </div>
             </Space>
             <Switch
@@ -190,11 +218,9 @@ export default function ChannelsPage() {
             />
           </div>
 
-          <div style={{ color: "#888", fontSize: 13 }}>
-            {type === "whatsapp" && "Send notifications via WhatsApp Business API"}
-            {type === "email" && "Send email notifications via SMTP"}
-            {type === "sms" && "Send SMS notifications via provider"}
-          </div>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {meta.description}
+          </Text>
 
           <Button
             icon={<SettingOutlined />}
@@ -211,16 +237,28 @@ export default function ChannelsPage() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>
-        Notification Channels
-      </h2>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <Typography.Title level={4} style={{ margin: 0 }}>Notification Channels</Typography.Title>
+            <Text type="secondary">Configure WhatsApp, Email, and SMS notification channels</Text>
+          </div>
+          <Button icon={<ReloadOutlined />} onClick={fetchChannels}>
+            Refresh
+          </Button>
+        </div>
+      </div>
 
       <Spin spinning={loading}>
-        <Row gutter={[24, 24]}>
-          <Col xs={24} md={8}>{renderChannelCard("whatsapp")}</Col>
-          <Col xs={24} md={8}>{renderChannelCard("email")}</Col>
-          <Col xs={24} md={8}>{renderChannelCard("sms")}</Col>
-        </Row>
+        {channels.length === 0 && !loading ? (
+          <Empty description="No channels configured" />
+        ) : (
+          <Row gutter={[24, 24]}>
+            <Col xs={24} md={8}>{renderChannelCard("whatsapp")}</Col>
+            <Col xs={24} md={8}>{renderChannelCard("email")}</Col>
+            <Col xs={24} md={8}>{renderChannelCard("sms")}</Col>
+          </Row>
+        )}
       </Spin>
 
       <Modal

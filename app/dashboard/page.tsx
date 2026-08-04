@@ -1,82 +1,133 @@
 "use client";
 
 import React from "react";
-import { Row, Col, Card, Statistic, Table, Tag } from "antd";
-import { ArrowUpOutlined, ArrowDownOutlined, UserOutlined, CreditCardOutlined, ShoppingCartOutlined } from "@ant-design/icons";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Row, Col, Card, Statistic, Table, Tag, Empty, Typography } from "antd";
+import {
+  TeamOutlined,
+  SafetyCertificateOutlined,
+  ToolOutlined,
+  AlertOutlined,
+  HomeOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+} from "@ant-design/icons";
 
-const data = [
-  { name: "Jan", revenue: 4000, subs: 2400 },
-  { name: "Feb", revenue: 3000, subs: 1398 },
-  { name: "Mar", revenue: 2000, subs: 9800 },
-  { name: "Apr", revenue: 2780, subs: 3908 },
-  { name: "May", revenue: 1890, subs: 4800 },
-  { name: "Jun", revenue: 2390, subs: 3800 },
-  { name: "Jul", revenue: 3490, subs: 4300 },
-];
+const { Title, Text } = Typography;
 
-const columns = [
-  { title: "Name", dataIndex: "name", key: "name" },
-  { title: "Plan", dataIndex: "plan", key: "plan" },
-  { title: "Status", dataIndex: "status", key: "status", render: (status: string) => (
-      <Tag color={status === "Active" ? "green" : "red"}>{status}</Tag>
-    ) 
+const recentActivity = [
+  {
+    key: "1",
+    action: "User login",
+    user: "John Smith",
+    time: "2 minutes ago",
+    type: "info",
   },
-  { title: "Joined", dataIndex: "joined", key: "joined" },
+  {
+    key: "2",
+    action: "Settings updated",
+    user: "Admin",
+    time: "1 hour ago",
+    type: "warning",
+  },
+  {
+    key: "3",
+    action: "New user added",
+    user: "Sarah Johnson",
+    time: "3 hours ago",
+    type: "success",
+  },
 ];
 
-const tableData = [
-  { key: "1", name: "John Brown", plan: "Pro", status: "Active", joined: "2023-01-15" },
-  { key: "2", name: "Jim Green", plan: "Starter", status: "Expired", joined: "2023-03-22" },
-  { key: "3", name: "Joe Black", plan: "Enterprise", status: "Active", joined: "2023-06-12" },
-  { key: "4", name: "Jim Red", plan: "Pro", status: "Active", joined: "2023-07-05" },
+const activityColumns = [
+  {
+    title: "Action",
+    dataIndex: "action",
+    key: "action",
+  },
+  {
+    title: "User",
+    dataIndex: "user",
+    key: "user",
+  },
+  {
+    title: "Time",
+    dataIndex: "time",
+    key: "time",
+  },
+  {
+    title: "Type",
+    dataIndex: "type",
+    key: "type",
+    render: (type: string) => {
+      const colorMap: Record<string, string> = {
+        info: "blue",
+        success: "green",
+        warning: "orange",
+        error: "red",
+      };
+      return <Tag color={colorMap[type] || "default"}>{type}</Tag>;
+    },
+  },
 ];
 
 export default function Dashboard() {
   return (
     <div>
-      <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>Dashboard Overview</h2>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={4} style={{ margin: 0 }}>Dashboard</Title>
+        <Text type="secondary">Welcome to BuildX Construction ERP</Text>
+      </div>
+
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <Card
+            bordered={false}
+            style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+          >
             <Statistic
-              title="Total Revenue"
-              value={112893}
-              precision={2}
-              valueStyle={{ color: "#3f8600" }}
-              prefix="₹"
-              suffix={<ArrowUpOutlined style={{ fontSize: 14 }} />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
-            <Statistic
-              title="Active Clients"
-              value={1234}
+              title="Total Users"
+              value={3}
+              prefix={<TeamOutlined />}
               valueStyle={{ color: "#1890ff" }}
-              prefix={<UserOutlined />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <Card
+            bordered={false}
+            style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+          >
             <Statistic
-              title="Active Subscriptions"
-              value={893}
+              title="Active Roles"
+              value={5}
+              prefix={<SafetyCertificateOutlined />}
+              valueStyle={{ color: "#52c41a" }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card
+            bordered={false}
+            style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+          >
+            <Statistic
+              title="Feature Modules"
+              value={5}
+              prefix={<ToolOutlined />}
               valueStyle={{ color: "#faad14" }}
-              prefix={<CreditCardOutlined />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <Card
+            bordered={false}
+            style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+          >
             <Statistic
-              title="Sales Today"
-              value={93}
-              valueStyle={{ color: "#cf1322" }}
-              prefix={<ShoppingCartOutlined />}
-              suffix={<ArrowDownOutlined style={{ fontSize: 14 }} />}
+              title="Notification Channels"
+              value={3}
+              prefix={<AlertOutlined />}
+              valueStyle={{ color: "#722ed1" }}
             />
           </Card>
         </Col>
@@ -84,43 +135,61 @@ export default function Dashboard() {
 
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={16}>
-          <Card title="Revenue Growth" bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
-            <div style={{ height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1890ff" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#1890ff" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="revenue" stroke="#1890ff" fillOpacity={1} fill="url(#colorRevenue)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+          <Card
+            title="Recent Activity"
+            bordered={false}
+            style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+          >
+            <Table
+              columns={activityColumns}
+              dataSource={recentActivity}
+              pagination={false}
+              size="small"
+            />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
-          <Card title="Recent Activity" bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)", height: "100%" }}>
-            <ul style={{ paddingLeft: 0, listStyle: "none", margin: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-              <li style={{ padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>🔵 <strong>John Brown</strong> upgraded to Pro plan</li>
-              <li style={{ padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>🔴 <strong>Jim Green</strong> subscription expired</li>
-              <li style={{ padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>🟢 New client <strong>Joe Black</strong> joined</li>
-              <li style={{ padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>⚙️ <strong>System</strong> monthly report generated</li>
-              <li style={{ padding: "8px 0" }}>👤 <strong>Admin</strong> updated settings</li>
-            </ul>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-        <Col span={24}>
-          <Card title="Latest Clients" bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
-            <Table columns={columns} dataSource={tableData} pagination={false} scroll={{ x: "max-content" }} />
+          <Card
+            title="Quick Actions"
+            bordered={false}
+            style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div
+                style={{
+                  padding: "12px 16px",
+                  background: "#f6ffed",
+                  borderRadius: 8,
+                  border: "1px solid #b7eb8f",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <CheckCircleOutlined style={{ color: "#52c41a", fontSize: 16 }} />
+                <div>
+                  <div style={{ fontWeight: 500 }}>System Status</div>
+                  <div style={{ color: "#666", fontSize: 12 }}>All systems operational</div>
+                </div>
+              </div>
+              <div
+                style={{
+                  padding: "12px 16px",
+                  background: "#e6f7ff",
+                  borderRadius: 8,
+                  border: "1px solid #91d5ff",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <ClockCircleOutlined style={{ color: "#1890ff", fontSize: 16 }} />
+                <div>
+                  <div style={{ fontWeight: 500 }}>Last Updated</div>
+                  <div style={{ color: "#666", fontSize: 12 }}>Just now</div>
+                </div>
+              </div>
+            </div>
           </Card>
         </Col>
       </Row>
