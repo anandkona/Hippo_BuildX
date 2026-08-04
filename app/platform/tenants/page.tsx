@@ -30,6 +30,8 @@ import {
   CloudServerOutlined,
   CopyOutlined,
   LoginOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 
@@ -129,6 +131,24 @@ export default function TenantsPage() {
     }
   };
 
+  const handleSuspendResume = async (tenant: Tenant, action: "suspend" | "resume") => {
+    try {
+      const res = await fetch(`/api/v1/platform/tenants/${tenant.id}/suspend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update tenant");
+      }
+      message.success(`Tenant ${action === "suspend" ? "suspended" : "resumed"} successfully`);
+      fetchTenants();
+    } catch (error: any) {
+      message.error(error.message || "Failed to update tenant");
+    }
+  };
+
   const filteredTenants = tenants.filter(
     (t) =>
       t.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -198,21 +218,42 @@ export default function TenantsPage() {
     {
       title: "Actions",
       key: "actions",
-      width: 150,
+      width: 200,
       render: (_: unknown, record: Tenant) => (
         <Space size="small">
           <Tooltip title="View Details">
             <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(record)} />
           </Tooltip>
           {record.status === "active" && (
-            <Tooltip title="Login as Tenant">
-              <Button
-                type="text"
-                icon={<LoginOutlined />}
-                style={{ color: "#52c41a" }}
-                onClick={() => handleLoginAsTenant(record)}
-              />
-            </Tooltip>
+            <>
+              <Tooltip title="Login as Tenant">
+                <Button
+                  type="text"
+                  icon={<LoginOutlined />}
+                  style={{ color: "#52c41a" }}
+                  onClick={() => handleLoginAsTenant(record)}
+                />
+              </Tooltip>
+              <Popconfirm
+                title="Suspend this tenant?"
+                description="All tenant users will be logged out"
+                onConfirm={() => handleSuspendResume(record, "suspend")}
+              >
+                <Tooltip title="Suspend">
+                  <Button type="text" icon={<PauseCircleOutlined />} style={{ color: "#faad14" }} />
+                </Tooltip>
+              </Popconfirm>
+            </>
+          )}
+          {record.status === "suspended" && (
+            <Popconfirm
+              title="Resume this tenant?"
+              onConfirm={() => handleSuspendResume(record, "resume")}
+            >
+              <Tooltip title="Resume">
+                <Button type="text" icon={<PlayCircleOutlined />} style={{ color: "#52c41a" }} />
+              </Tooltip>
+            </Popconfirm>
           )}
           {record.status === "failed" && (
             <Popconfirm

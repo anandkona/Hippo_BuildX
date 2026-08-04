@@ -9,6 +9,8 @@ import {
   ExclamationCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
+  CrownOutlined,
+  LinkOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 
@@ -22,32 +24,52 @@ interface Tenant {
   created_at: string;
 }
 
+interface Subscription {
+  tenantId: string;
+  planName: string;
+  status: string;
+}
+
 export default function PlatformDashboard() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const fetchTenants = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/v1/platform/tenants");
-      if (!res.ok) throw new Error("Failed to fetch tenants");
-      const data = await res.json();
-      setTenants(data.tenants ?? []);
+      const [tenantRes, subRes] = await Promise.all([
+        fetch("/api/v1/platform/tenants"),
+        fetch("/api/v1/platform/subscriptions"),
+      ]);
+
+      if (tenantRes.ok) {
+        const tenantData = await tenantRes.json();
+        setTenants(tenantData.tenants ?? []);
+      }
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        setSubscriptions(subData.subscriptions ?? []);
+      }
     } catch {
-      console.error("Failed to load tenants");
+      console.error("Failed to load data");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchTenants();
-  }, [fetchTenants]);
+    fetchData();
+  }, [fetchData]);
 
   const activeTenants = tenants.filter((t) => t.status === "active").length;
   const provisioningTenants = tenants.filter((t) => t.status === "provisioning").length;
   const failedTenants = tenants.filter((t) => t.status === "failed").length;
+  const activeSubscriptions = subscriptions.filter((s) => s.status === "active").length;
+
+  const getSubscriptionForTenant = (tenantId: string) =>
+    subscriptions.find((s) => s.tenantId === tenantId);
 
   const columns = [
     {
@@ -75,6 +97,18 @@ export default function PlatformDashboard() {
       },
     },
     {
+      title: "Plan",
+      key: "plan",
+      render: (_: unknown, record: Tenant) => {
+        const sub = getSubscriptionForTenant(record.id);
+        return sub ? (
+          <Tag icon={<CrownOutlined />} color="blue">{sub.planName}</Tag>
+        ) : (
+          <Tag>No Plan</Tag>
+        );
+      },
+    },
+    {
       title: "Created",
       dataIndex: "created_at",
       key: "created_at",
@@ -91,7 +125,7 @@ export default function PlatformDashboard() {
             <Text type="secondary">Overview of all tenants on the platform</Text>
           </div>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchTenants}>
+            <Button icon={<ReloadOutlined />} onClick={fetchData}>
               Refresh
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => router.push("/platform/tenants")}>
@@ -102,7 +136,7 @@ export default function PlatformDashboard() {
       </div>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <Statistic
               title="Total Tenants"
@@ -112,7 +146,7 @@ export default function PlatformDashboard() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <Statistic
               title="Active"
@@ -122,7 +156,17 @@ export default function PlatformDashboard() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
+          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+            <Statistic
+              title="Active Subscriptions"
+              value={activeSubscriptions}
+              prefix={<LinkOutlined />}
+              valueStyle={{ color: "#722ed1" }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
           <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <Statistic
               title="Provisioning / Failed"

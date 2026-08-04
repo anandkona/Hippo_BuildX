@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, jsonb, unique, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, unique, boolean, integer, text } from 'drizzle-orm/pg-core';
 
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -53,4 +53,43 @@ export const platformSessions = pgTable('platform_sessions', {
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: varchar('user_agent', { length: 255 }),
+});
+
+/** Subscription plans available on the platform */
+export const plans = pgTable('plans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  description: text('description'),
+  price: integer('price').notNull().default(0),
+  currency: varchar('currency', { length: 3 }).notNull().default('INR'),
+  billingCycle: varchar('billing_cycle', { length: 20 }).notNull().default('monthly'),
+  maxUsers: integer('max_users').notNull().default(5),
+  maxProjects: integer('max_projects').notNull().default(1),
+  featureFlags: jsonb('feature_flags').notNull().default({}),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Tenant subscriptions — links a tenant to a plan */
+export const subscriptions = pgTable('subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
+  planId: uuid('plan_id').notNull().references(() => plans.id),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Subscription status values */
+export const SUBSCRIPTION_STATUS = Object.freeze({
+  ACTIVE: 'active',
+  TRIAL: 'trial',
+  PAST_DUE: 'past_due',
+  CANCELLED: 'cancelled',
+  EXPIRED: 'expired',
 });

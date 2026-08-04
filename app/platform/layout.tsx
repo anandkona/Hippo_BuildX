@@ -8,6 +8,9 @@ import {
   DashboardOutlined,
   CloudServerOutlined,
   LogoutOutlined,
+  CrownOutlined,
+  LinkOutlined,
+  HeartOutlined,
 } from "@ant-design/icons";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -17,11 +20,17 @@ const { Sider, Content } = Layout;
 const menuItems = [
   { key: "/platform", icon: <DashboardOutlined />, label: "Dashboard" },
   { key: "/platform/tenants", icon: <TeamOutlined />, label: "Tenants" },
+  { key: "/platform/plans", icon: <CrownOutlined />, label: "Plans" },
+  { key: "/platform/subscriptions", icon: <LinkOutlined />, label: "Subscriptions" },
+  { key: "/platform/health", icon: <HeartOutlined />, label: "Health" },
 ];
 
 const breadcrumbMap: Record<string, string> = {
   "/platform": "Dashboard",
   "/platform/tenants": "Tenants",
+  "/platform/plans": "Plans",
+  "/platform/subscriptions": "Subscriptions",
+  "/platform/health": "Health",
 };
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
