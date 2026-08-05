@@ -5,6 +5,8 @@ import { eq, sql } from 'drizzle-orm';
 import { verifyPassword } from '@/lib/auth/crypto';
 import { signAccessToken } from '@/lib/auth/jwt';
 import { loadTenantAuthClaims } from '@/lib/auth/tenant-claims';
+import { createSession } from '@/lib/auth/session';
+import { createPlatformSession } from '@/lib/auth/platform-session';
 
 function redirectForRoles(roles: string[], isPlatformAdmin: boolean) {
   if (isPlatformAdmin) return '/platform';
@@ -12,7 +14,7 @@ function redirectForRoles(roles: string[], isPlatformAdmin: boolean) {
   return '/dashboard';
 }
 
-async function loginPlatform(email: string, password: string) {
+async function loginPlatform(email: string, password: string, req: Request) {
   const db = getDb();
   const [user] = await db.select().from(platformUsers).where(eq(platformUsers.email, email));
 
@@ -38,6 +40,12 @@ async function loginPlatform(email: string, password: string) {
 
   await db.update(platformUsers).set({ lastLoginAt: new Date() }).where(eq(platformUsers.id, user.id));
 
+  const refreshToken = await createPlatformSession(
+    user.id,
+    req.headers.get('x-forwarded-for') || undefined,
+    req.headers.get('user-agent') || undefined
+  );
+
   const response = NextResponse.json({
     message: 'Login successful',
     scope: 'platform',
@@ -45,11 +53,19 @@ async function loginPlatform(email: string, password: string) {
     redirectTo: redirectForRoles(roles, true),
   });
 
+  const isProd = process.env.NODE_ENV === 'production';
   response.cookies.set('access_token', accessToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProd,
     sameSite: 'strict',
     maxAge: 15 * 60,
+    path: '/',
+  });
+  response.cookies.set('refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'strict',
+    maxAge: 30 * 24 * 60 * 60,
     path: '/',
   });
 
@@ -188,7 +204,7 @@ export async function POST(req: Request) {
       return result.response;
     }
 
-    const platform = await loginPlatform(email, password);
+    const platform = await loginPlatform(email, password, req);
     if (platform && 'response' in platform) return platform.response;
     if (platform && 'error' in platform) {
       return NextResponse.json({ error: platform.error }, { status: platform.status });

@@ -92,6 +92,12 @@ export async function PUT(req: Request, { params }: RouteContext) {
       );
     }
 
+    await auditTenantMutation(req, context, 'update', 'role', id, {
+      name,
+      description,
+      permissions,
+    });
+
     return NextResponse.json({ data: { message: 'Role updated' } });
   } catch (error) {
     console.error('Update role error:', error);
@@ -127,6 +133,8 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
       SET deleted_at = NOW(), updated_at = NOW(), updated_by = ${context.userId || null}
       WHERE id = ${id}
     `;
+
+    await auditTenantMutation(_req, context, 'delete', 'role', id);
 
     return NextResponse.json({ data: { message: 'Role deleted' } });
   } catch (error) {

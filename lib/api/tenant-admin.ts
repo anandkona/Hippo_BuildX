@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { extractContextFromHeaders, type TenantContext } from '@/lib/tenant-context';
-import { hasPermission } from '@/lib/rbac/permissions';
 import { assertTenantActive } from '@/lib/tenants/assert-active';
 import { logAudit } from '@/lib/audit';
+import { evaluateScope, type ScopeCheckInput } from '@/lib/rbac/scope';
+import { createTenantSql } from '@/lib/db/client';
 
 export type AdminAuthResult =
   | { ok: true; context: TenantContext }
@@ -12,12 +13,25 @@ function clientIp(req: Request) {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || undefined;
 }
 
+async function loadFeatureFlags(schemaName: string): Promise<Record<string, unknown> | null> {
+  try {
+    const sql = createTenantSql(schemaName);
+    const [row] = await sql`
+      SELECT value FROM tenant_settings WHERE key = 'feature_flags' LIMIT 1
+    `;
+    if (!row?.value || typeof row.value !== 'object') return null;
+    return row.value as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Tenant API gate: active tenant + tenant_admin OR matching permission.
+ * Tenant API gate: active tenant + four-axis scope (role/module/project/location).
  */
 export async function requireTenantApi(
   req: Request,
-  opts?: { permission?: string }
+  opts?: ScopeCheckInput
 ): Promise<AdminAuthResult> {
   const context = extractContextFromHeaders(req.headers);
 
@@ -31,30 +45,20 @@ export async function requireTenantApi(
   const active = await assertTenantActive(context.tenantId);
   if (!active.ok) return active;
 
-  const roles = context.roles ?? [];
-  const isAdmin = roles.includes('tenant_admin');
+  const featureFlags =
+    opts?.featureFlags !== undefined
+      ? opts.featureFlags
+      : await loadFeatureFlags(context.schemaName);
 
-  if (isAdmin) {
-    return { ok: true, context };
-  }
-
-  if (opts?.permission) {
-    if (hasPermission(context.permissions ?? [], opts.permission)) {
-      return { ok: true, context };
-    }
+  const scope = evaluateScope(context, { ...opts, featureFlags });
+  if (!scope.allowed) {
     return {
       ok: false,
-      response: NextResponse.json(
-        { error: `Forbidden: missing permission ${opts.permission}` },
-        { status: 403 }
-      ),
+      response: NextResponse.json({ error: scope.reason || 'Forbidden' }, { status: 403 }),
     };
   }
 
-  return {
-    ok: false,
-    response: NextResponse.json({ error: 'Forbidden: insufficient role' }, { status: 403 }),
-  };
+  return { ok: true, context };
 }
 
 export async function auditTenantMutation(

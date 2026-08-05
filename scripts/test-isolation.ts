@@ -133,6 +133,20 @@ async function main() {
     assert(countB2 === countB, 'B unchanged after A insert');
     console.log('  ✓ write isolation');
 
+    // Scope axis smoke (same helper used by requireTenantApi)
+    const { evaluateScope } = await import('../lib/rbac/scope');
+    const scoped = evaluateScope(
+      {
+        roles: ['site_engineer'],
+        permissions: ['construction.read'],
+        projectIds: [rowA.id],
+        locationIds: [],
+      },
+      { permission: 'construction.read', projectId: rowB.id }
+    );
+    assert(!scoped.allowed, 'cross-tenant project id denied by scope');
+    console.log('  ✓ four-axis scope denies foreign project');
+
     console.log('\\n✅ Isolation suite passed\\n');
   } catch (err) {
     console.error('\\n❌ Isolation suite failed:', err);
