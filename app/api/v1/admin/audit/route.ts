@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
+import { requireTenantApi } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
 
 interface PaginationMeta {

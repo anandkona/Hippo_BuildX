@@ -102,11 +102,29 @@ async function scopeUnitTests() {
     isInScope({ projectIds: ['p1'], locationIds: [] }, { projectId: 'p1' }),
     'isInScope allow'
   );
-  assert(
-    !isInScope({ projectIds: ['p1'], locationIds: [] }, { projectId: 'p2' }),
-    'isInScope deny'
-  );
-  console.log('  ✓ four-axis scope unit checks');
+    assert(
+      !isInScope({ projectIds: ['p1'], locationIds: [] }, { projectId: 'p2' }),
+      'isInScope deny'
+    );
+    console.log('  ✓ four-axis scope unit checks');
+
+    // Schema binding contract
+    const { createTenantSql } = await import('../lib/db/client');
+    let threw = false;
+    try {
+      createTenantSql('public');
+    } catch {
+      threw = true;
+    }
+    assert(threw, 'createTenantSql rejects public');
+    threw = false;
+    try {
+      createTenantSql('');
+    } catch {
+      threw = true;
+    }
+    assert(threw, 'createTenantSql rejects empty schema');
+    console.log('  ✓ createTenantSql rejects non-tenant schemas');
 }
 
 async function platformSessionDbTests() {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
 
 interface RouteContext {
@@ -44,13 +44,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
   }
 }
 
-export async function PUT(req: Request, { params }: RouteContext) {
-  try {
-    const auth = await requireTenantApi(req, { permission: 'roles.update' });
-    if (!auth.ok) return auth.response;
-    const context = auth.context;
-
-    const { id } = await params;
+export const PUT = withAudit(
+  { permission: 'roles.update', resource: 'role', action: 'Updated Role' },
+  async ({ req, context, routeCtx, audit }) => {
+    const { id } = await routeCtx!.params!;
     const body = await req.json();
     const { name, description, permissions } = body as {
       name?: string;
@@ -92,26 +89,18 @@ export async function PUT(req: Request, { params }: RouteContext) {
       );
     }
 
-    await auditTenantMutation(req, context, 'update', 'role', id, {
-      name,
-      description,
-      permissions,
+    audit({
+      resourceId: id,
+      details: { name, description, permissions },
     });
-
     return NextResponse.json({ data: { message: 'Role updated' } });
-  } catch (error) {
-    console.error('Update role error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);
 
-export async function DELETE(_req: Request, { params }: RouteContext) {
-  try {
-    const auth = await requireTenantApi(_req, { permission: 'roles.delete' });
-    if (!auth.ok) return auth.response;
-    const context = auth.context;
-
-    const { id } = await params;
+export const DELETE = withAudit(
+  { permission: 'roles.delete', resource: 'role', action: 'Deleted Role' },
+  async ({ context, routeCtx, audit }) => {
+    const { id } = await routeCtx!.params!;
     const sql = createTenantSql(context.schemaName);
 
     const [existing] = await sql`
@@ -122,10 +111,7 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
     }
 
     if (existing.is_system) {
-      return NextResponse.json(
-        { error: 'Cannot delete system role' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Cannot delete system role' }, { status: 400 });
     }
 
     await sql`
@@ -134,11 +120,7 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
       WHERE id = ${id}
     `;
 
-    await auditTenantMutation(_req, context, 'delete', 'role', id);
-
+    audit({ resourceId: id });
     return NextResponse.json({ data: { message: 'Role deleted' } });
-  } catch (error) {
-    console.error('Delete role error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

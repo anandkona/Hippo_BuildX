@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 import { createTenantSql, getSql } from '@/lib/db/client';
 
 interface RouteContext {
@@ -39,13 +39,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
   }
 }
 
-export async function PUT(req: Request, { params }: RouteContext) {
-  try {
-    const auth = await requireTenantApi(req, { permission: 'users.update' });
-    if (!auth.ok) return auth.response;
-    const context = auth.context;
-
-    const { id } = await params;
+export const PUT = withAudit(
+  { permission: 'users.update', resource: 'user', action: 'Updated User' },
+  async ({ req, context, routeCtx, audit }) => {
+    const { id } = await routeCtx!.params!;
     const body = await req.json();
     const { name, email, status, roleIds } = body as {
       name?: string;
@@ -107,21 +104,15 @@ export async function PUT(req: Request, { params }: RouteContext) {
       }
     });
 
-    await auditTenantMutation(req, context, 'Updated User', 'user', id);
+    audit({ resourceId: id });
     return NextResponse.json({ data: { message: 'User updated' } });
-  } catch (error) {
-    console.error('Update user error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);
 
-export async function DELETE(_req: Request, { params }: RouteContext) {
-  try {
-    const auth = await requireTenantApi(_req, { permission: 'users.delete' });
-    if (!auth.ok) return auth.response;
-    const context = auth.context;
-
-    const { id } = await params;
+export const DELETE = withAudit(
+  { permission: 'users.delete', resource: 'user', action: 'Deleted User' },
+  async ({ context, routeCtx, audit }) => {
+    const { id } = await routeCtx!.params!;
     const sql = createTenantSql(context.schemaName);
 
     const [existing] = await sql`
@@ -137,10 +128,7 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
       WHERE id = ${id}
     `;
 
-    await auditTenantMutation(_req, context, 'Deleted User', 'user', id);
+    audit({ resourceId: id });
     return NextResponse.json({ data: { message: 'User deleted' } });
-  } catch (error) {
-    console.error('Delete user error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

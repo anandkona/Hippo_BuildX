@@ -33,3 +33,10 @@ This document records the canonical architectural decisions for the BUILD-EX pro
 ## 8. Four-axis RBAC delivery
 **Decision:** Ship `evaluateScope` (role ∧ module ∧ project ∧ location) in Phase 1; wire through `requireTenantApi`. Resource-level project/location arguments are optional until domain modules exist (Phase 2+).
 **Rationale:** Claims and assignment columns already exist on `user_roles`; domain APIs will pass target IDs as modules land.
+
+## 9. Audit interceptor
+**Decision:** State-changing tenant admin routes use `withAudit` / `withTenantMutation` (`lib/api/tenant-admin.ts`) so AuthZ → handler → audit on 2xx is shared, not hand-rolled per handler.
+**Rationale:** PRD §14 requires a shared interceptor on mutations; Next.js App Router has no Nest-style interceptor, so an HOF wrapping route handlers is the equivalent.
+
+## 10. TODO (Phase 2) — single source of truth for role permissions
+**TODO:** Deprecate `roles.permissions` JSONB in tenant migration `001_identity_core` once the relational `permissions` table (`module`, `action`, optional project/location) is the sole AuthZ source. Today `loadTenantAuthClaims` unions both for backward compatibility; Phase 2 should migrate JSONB rows into `permissions`, drop the column, and update Tenant Admin role editors accordingly.

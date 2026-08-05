@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createTenantSql, getSql } from '@/lib/db/client';
 import { hashPassword } from '@/lib/auth/crypto';
-import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 
 interface PaginationMeta {
   total: number;
@@ -63,11 +63,9 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const auth = await requireTenantApi(req, { permission: 'users.create' });
-    if (!auth.ok) return auth.response;
-
+export const POST = withAudit(
+  { permission: 'users.create', resource: 'user', action: 'Created User' },
+  async ({ req, context, audit }) => {
     const body = await req.json();
     const { email, name, password, roleIds } = body as {
       email?: string;
@@ -84,7 +82,7 @@ export async function POST(req: Request) {
     }
 
     const hashedPassword = await hashPassword(password);
-    const checkSql = createTenantSql(auth.context.schemaName);
+    const checkSql = createTenantSql(context.schemaName);
 
     const [existingUser] = await checkSql`
       SELECT id FROM users WHERE email = ${email} AND deleted_at IS NULL
@@ -97,11 +95,11 @@ export async function POST(req: Request) {
     let createdId = '';
 
     await dbSql.begin(async (tx) => {
-      await tx.unsafe(`SET LOCAL search_path TO "${auth.context.schemaName}", public`);
+      await tx.unsafe(`SET LOCAL search_path TO "${context.schemaName}", public`);
 
       const [user] = await tx`
         INSERT INTO users (tenant_id, email, name, password_hash, created_by)
-        VALUES (${auth.context.tenantId}, ${email}, ${name}, ${hashedPassword}, ${auth.context.userId || null})
+        VALUES (${context.tenantId}, ${email}, ${name}, ${hashedPassword}, ${context.userId || null})
         RETURNING id
       `;
       createdId = user.id;
@@ -110,17 +108,13 @@ export async function POST(req: Request) {
         for (const roleId of roleIds) {
           await tx`
             INSERT INTO user_roles (tenant_id, user_id, role_id)
-            VALUES (${auth.context.tenantId}, ${user.id}, ${roleId})
+            VALUES (${context.tenantId}, ${user.id}, ${roleId})
           `;
         }
       }
     });
 
-    await auditTenantMutation(req, auth.context, 'Created User', 'user', createdId, { email });
-
+    audit({ resourceId: createdId, details: { email } });
     return NextResponse.json({ data: { message: 'User created', id: createdId } }, { status: 201 });
-  } catch (error) {
-    console.error('Create user error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

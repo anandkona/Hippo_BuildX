@@ -9,6 +9,27 @@ export type AdminAuthResult =
   | { ok: true; context: TenantContext }
   | { ok: false; response: NextResponse };
 
+export type RouteContext = {
+  params?: Promise<Record<string, string>>;
+};
+
+export type AuditMeta = {
+  resourceId?: string;
+  details?: Record<string, unknown>;
+  /** Override default action label for this response */
+  action?: string;
+  /** Skip audit for this response (e.g. no-op paths) */
+  skip?: boolean;
+};
+
+export type MutationHandlerArgs = {
+  req: Request;
+  context: TenantContext;
+  routeCtx?: RouteContext;
+  /** Call before returning a successful mutation response to attach audit metadata */
+  audit: (meta?: AuditMeta) => void;
+};
+
 function clientIp(req: Request) {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || undefined;
 }
@@ -81,3 +102,70 @@ export async function auditTenantMutation(
     ipAddress: clientIp(req),
   });
 }
+
+export type WithAuditOptions = ScopeCheckInput & {
+  /** Audit resource name, e.g. user | role | settings | channel */
+  resource: string;
+  /** Default audit action label when handler does not override */
+  action: string;
+};
+
+/**
+ * Shared interceptor for state-changing tenant admin endpoints (PRD §14.7).
+ *
+ * Flow: AuthZ (`requireTenantApi`) → handler → audit on 2xx responses.
+ * Handlers must not call `auditTenantMutation` manually; use `audit()` to attach metadata.
+ *
+ * @example
+ * export const POST = withAudit(
+ *   { permission: 'users.create', resource: 'user', action: 'Created User' },
+ *   async ({ req, context, audit }) => {
+ *     // ... mutate ...
+ *     audit({ resourceId: id, details: { email } });
+ *     return NextResponse.json({ data: { id } }, { status: 201 });
+ *   }
+ * );
+ */
+export function withAudit(
+  opts: WithAuditOptions,
+  handler: (args: MutationHandlerArgs) => Promise<NextResponse>
+) {
+  return async (req: Request, routeCtx?: RouteContext): Promise<NextResponse> => {
+    try {
+      const auth = await requireTenantApi(req, opts);
+      if (!auth.ok) return auth.response;
+
+      let meta: AuditMeta = {};
+      const response = await handler({
+        req,
+        context: auth.context,
+        routeCtx,
+        audit: (patch) => {
+          meta = { ...meta, ...patch };
+        },
+      });
+
+      const shouldAudit =
+        !meta.skip && response.status >= 200 && response.status < 300;
+
+      if (shouldAudit) {
+        await auditTenantMutation(
+          req,
+          auth.context,
+          meta.action || opts.action,
+          opts.resource,
+          meta.resourceId,
+          meta.details
+        );
+      }
+
+      return response;
+    } catch (error) {
+      console.error(`[withAudit:${opts.resource}]`, error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+  };
+}
+
+/** Alias matching review naming */
+export const withTenantMutation = withAudit;

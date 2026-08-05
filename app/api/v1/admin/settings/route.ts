@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createTenantSql, getSql } from '@/lib/db/client';
-import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 
 /**
  * GET returns a flat branding/settings object (UI-compatible).
@@ -21,7 +21,6 @@ export async function GET(req: Request) {
       flat[row.key] = row.value;
     }
 
-    // Support legacy profile blob
     if (flat.profile && typeof flat.profile === 'object') {
       Object.assign(flat, flat.profile as object);
     }
@@ -33,11 +32,9 @@ export async function GET(req: Request) {
   }
 }
 
-export async function PUT(req: Request) {
-  try {
-    const auth = await requireTenantApi(req, { permission: 'settings.update' });
-    if (!auth.ok) return auth.response;
-
+export const PUT = withAudit(
+  { permission: 'settings.update', resource: 'settings', action: 'Updated Settings' },
+  async ({ req, context, audit }) => {
     const body = await req.json();
     const settings =
       body.settings && typeof body.settings === 'object'
@@ -51,25 +48,18 @@ export async function PUT(req: Request) {
 
     const sql = getSql();
     await sql.begin(async (tx) => {
-      await tx.unsafe(`SET LOCAL search_path TO "${auth.context.schemaName}", public`);
+      await tx.unsafe(`SET LOCAL search_path TO "${context.schemaName}", public`);
       for (const [key, value] of entries) {
         await tx`
           INSERT INTO tenant_settings (tenant_id, key, value)
-          VALUES (${auth.context.tenantId}, ${key}, ${JSON.stringify(value)})
+          VALUES (${context.tenantId}, ${key}, ${JSON.stringify(value)})
           ON CONFLICT (key) DO UPDATE
           SET value = ${JSON.stringify(value)}, updated_at = NOW()
         `;
       }
     });
 
-    await auditTenantMutation(req, auth.context, 'Updated Settings', 'settings', undefined, {
-      keys: entries.map(([k]) => k),
-    });
-
-    const flat = Object.fromEntries(entries);
-    return NextResponse.json(flat);
-  } catch (error) {
-    console.error('Update settings error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    audit({ details: { keys: entries.map(([k]) => k) } });
+    return NextResponse.json(Object.fromEntries(entries));
   }
-}
+);

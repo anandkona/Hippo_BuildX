@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
 
 interface PaginationMeta {
@@ -51,12 +51,9 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const auth = await requireTenantApi(req, { permission: 'roles.create' });
-    if (!auth.ok) return auth.response;
-    const context = auth.context;
-
+export const POST = withAudit(
+  { permission: 'roles.create', resource: 'role', action: 'Created Role' },
+  async ({ req, context, audit }) => {
     const body = await req.json();
     const { name, description, permissions } = body as {
       name?: string;
@@ -92,10 +89,7 @@ export async function POST(req: Request) {
       RETURNING id, name, description, permissions, is_system, created_at
     `;
 
-    await auditTenantMutation(req, context, 'Created Role', 'role', role.id, { name });
+    audit({ resourceId: role.id, details: { name } });
     return NextResponse.json({ data: role }, { status: 201 });
-  } catch (error) {
-    console.error('Create role error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

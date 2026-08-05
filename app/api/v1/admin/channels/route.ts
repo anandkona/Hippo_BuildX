@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
 
 interface ChannelConfig {
@@ -52,12 +52,9 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const auth = await requireTenantApi(req, { permission: 'channels.update' });
-    if (!auth.ok) return auth.response;
-    const context = auth.context;
-
+export const POST = withAudit(
+  { permission: 'channels.update', resource: 'channel', action: 'Upserted Channel' },
+  async ({ req, context, audit }) => {
     const body = await req.json();
     const { channel, config, is_active } = body as {
       channel?: string;
@@ -86,19 +83,25 @@ export async function POST(req: Request) {
         SET config = ${JSON.stringify(config)}, is_active = ${is_active ?? true}, updated_at = NOW()
         WHERE id = ${existing.id}
       `;
-      await auditTenantMutation(req, context, 'Updated Channel', 'channel', existing.id, { channel });
+      audit({
+        action: 'Updated Channel',
+        resourceId: existing.id,
+        details: { channel },
+      });
       return NextResponse.json({ data: { message: 'Channel updated' } });
     }
 
-    await sql`
+    const [created] = await sql`
       INSERT INTO tenant_channels (tenant_id, channel, config, is_active)
       VALUES (${context.tenantId}, ${channel}, ${JSON.stringify(config)}, ${is_active ?? true})
+      RETURNING id
     `;
 
-    await auditTenantMutation(req, context, 'Created Channel', 'channel', undefined, { channel });
+    audit({
+      action: 'Created Channel',
+      resourceId: created?.id,
+      details: { channel },
+    });
     return NextResponse.json({ data: { message: 'Channel created' } }, { status: 201 });
-  } catch (error) {
-    console.error('Create/update channel error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);
