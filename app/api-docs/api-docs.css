@@ -476,3 +476,10 @@
   color: var(--docs-muted);
 }
 
+.docs-footer {
+  margin-top: 18px;
+  color: var(--docs-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
