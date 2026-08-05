@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { verifyPassword } from '@/lib/auth/crypto';
 import { signAccessToken } from '@/lib/auth/jwt';
 import { createSession } from '@/lib/auth/session';
+import { loadTenantAuthClaims } from '@/lib/auth/tenant-claims';
 
 export async function POST(req: Request) {
   try {
@@ -42,14 +43,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // 4. Fetch roles
-    const userRoles = await tenantSql`
-      SELECT r.name 
-      FROM user_roles ur
-      JOIN roles r ON ur.role_id = r.id
-      WHERE ur.user_id = ${user.id}
-    `;
-    const roles = userRoles.map((r: any) => r.name);
+    // 4. Fetch roles + permissions
+    const claims = await loadTenantAuthClaims(tenant.schemaName, user.id);
+    const roles = claims.roles;
 
     // 5. Issue Tokens
     const accessToken = await signAccessToken({
@@ -57,6 +53,9 @@ export async function POST(req: Request) {
       tenantId: tenant.id,
       schemaName: tenant.schemaName,
       roles,
+      permissions: claims.permissions,
+      projectIds: claims.projectIds,
+      locationIds: claims.locationIds,
     });
 
     const refreshToken = await createSession(
@@ -70,7 +69,7 @@ export async function POST(req: Request) {
     // 6. Update last login
     await tenantSql`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`;
 
-    const response = NextResponse.json({ accessToken, refreshToken });
+    const response = NextResponse.json({ accessToken, refreshToken, roles, permissions: claims.permissions });
     
     // Set HttpOnly Cookies
     const isProd = process.env.NODE_ENV === 'production';
@@ -78,7 +77,7 @@ export async function POST(req: Request) {
       httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60, path: '/'
     });
     response.cookies.set('refresh_token', refreshToken, {
-      httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 30 * 24 * 60 * 60, path: '/api/v1/auth/refresh'
+      httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 30 * 24 * 60 * 60, path: '/'
     });
 
     return response;

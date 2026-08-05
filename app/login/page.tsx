@@ -1,24 +1,31 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ThemeProvider } from "@/components/theme/ThemeProvider";
+
+/** Hardcoded colors so email/password stay visible before any theme JS runs */
+const ui = {
+  pageBg: "#082F49",
+  card: "#FFFFFF",
+  text: "#0F172A",
+  muted: "#64748B",
+  border: "#D7E0EC",
+  inputBg: "#F8FAFC",
+  primary: "#1D4ED8",
+  danger: "#B91C1C",
+  dangerBg: "#FEE2E2",
+  glow: "#1D4ED8",
+};
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from") || "";
-  const presetWorkspace = searchParams.get("workspace") || searchParams.get("tenantSlug") || "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [workspace, setWorkspace] = useState(presetWorkspace);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    setWorkspace(presetWorkspace);
-  }, [presetWorkspace]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,11 +35,7 @@ function LoginForm() {
       const res = await fetch("/api/v1/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-          workspace: workspace.trim() || undefined,
-        }),
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -45,7 +48,6 @@ function LoginForm() {
           ? from
           : data.redirectTo || (data.scope === "platform" ? "/platform" : "/dashboard");
 
-      // Prevent tenant users landing on platform routes and vice versa
       if (data.scope === "platform" && target.startsWith("/admin")) {
         router.push("/platform");
       } else if (data.scope === "tenant" && target.startsWith("/platform")) {
@@ -60,79 +62,146 @@ function LoginForm() {
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: 14,
+    fontWeight: 600,
+    marginBottom: 6,
+    color: ui.text,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 10,
+    border: `1px solid ${ui.border}`,
+    background: ui.inputBg,
+    color: ui.text,
+    fontSize: 15,
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
-      style={{ background: "var(--ui-sidebar)" }}
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "0 16px",
+        position: "relative",
+        overflow: "hidden",
+        background: ui.pageBg,
+      }}
     >
-      <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full opacity-30 blur-3xl" style={{ background: "var(--ui-primary)" }} />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full opacity-20 blur-3xl" style={{ background: "#ef4444" }} />
+      <div
+        style={{
+          position: "absolute",
+          top: -96,
+          left: -96,
+          width: 320,
+          height: 320,
+          borderRadius: "50%",
+          background: ui.glow,
+          opacity: 0.28,
+          filter: "blur(64px)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: -96,
+          right: -96,
+          width: 384,
+          height: 384,
+          borderRadius: "50%",
+          background: "#ef4444",
+          opacity: 0.2,
+          filter: "blur(64px)",
+        }}
+      />
 
       <div
-        className="w-full max-w-md rounded-xl shadow-2xl p-8 relative z-10"
-        style={{ background: "var(--ui-surface)", border: "1px solid var(--ui-border)" }}
         data-testid="central-login"
+        style={{
+          width: "100%",
+          maxWidth: 420,
+          borderRadius: 16,
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)",
+          padding: 32,
+          position: "relative",
+          zIndex: 10,
+          background: ui.card,
+          border: `1px solid ${ui.border}`,
+        }}
       >
-        <div className="text-center mb-8">
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div
-            className="inline-flex items-baseline gap-1 font-black italic tracking-tighter mb-3"
-            style={{ fontFamily: '"Trebuchet MS", sans-serif' }}
+            style={{
+              display: "inline-flex",
+              alignItems: "baseline",
+              gap: 4,
+              fontWeight: 900,
+              fontStyle: "italic",
+              letterSpacing: "-0.04em",
+              marginBottom: 12,
+              fontFamily: '"Trebuchet MS", sans-serif',
+            }}
           >
-            <span className="text-3xl" style={{ color: "var(--ui-primary)" }}>Hippo</span>
-            <span className="text-3xl text-red-500">build</span>
-            <span className="text-4xl text-red-500">X</span>
+            <span style={{ fontSize: 30, color: ui.primary }}>Hippo</span>
+            <span style={{ fontSize: 30, color: "#ef4444" }}>build</span>
+            <span style={{ fontSize: 36, color: "#ef4444" }}>X</span>
           </div>
-          <h1 className="text-xl font-bold" style={{ color: "var(--ui-text)" }}>Sign in</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--ui-text-muted)" }}>
-            Use your work email. Add a workspace for tenant accounts.
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: ui.text, margin: 0 }}>Sign in</h1>
+          <p style={{ fontSize: 14, marginTop: 6, color: ui.muted, marginBottom: 0 }}>
+            Enter your email and password to continue
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-4" autoComplete="off">
+        <form onSubmit={onSubmit} autoComplete="off" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
-            <label htmlFor="email" className="block text-sm font-semibold mb-1.5">Email</label>
+            <label htmlFor="email" style={labelStyle}>
+              Email
+            </label>
             <input
               id="email"
+              name="email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="w-full p-2.5 border rounded-lg outline-none"
-              style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+              style={inputStyle}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-semibold mb-1.5">Password</label>
+            <label htmlFor="password" style={labelStyle}>
+              Password
+            </label>
             <input
               id="password"
+              name="password"
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
-              className="w-full p-2.5 border rounded-lg outline-none"
-              style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="workspace" className="block text-sm font-semibold mb-1.5">
-              Workspace <span className="font-normal" style={{ color: "var(--ui-text-muted)" }}>(optional)</span>
-            </label>
-            <input
-              id="workspace"
-              value={workspace}
-              onChange={(e) => setWorkspace(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-              placeholder="e.g. demo — leave blank for platform staff"
-              className="w-full p-2.5 border rounded-lg outline-none font-mono text-sm"
-              style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+              style={inputStyle}
             />
           </div>
 
           {error && (
-            <div className="text-sm px-3 py-2 rounded-md" style={{ background: "#FEE2E2", color: "var(--ui-danger)" }}>
+            <div
+              style={{
+                fontSize: 14,
+                padding: "10px 12px",
+                borderRadius: 8,
+                background: ui.dangerBg,
+                color: ui.danger,
+              }}
+            >
               {error}
             </div>
           )}
@@ -140,8 +209,19 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-lg font-semibold shadow-md disabled:opacity-60"
-            style={{ background: "var(--ui-primary)", color: "var(--ui-primary-foreground)" }}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              borderRadius: 10,
+              border: "none",
+              fontWeight: 600,
+              fontSize: 15,
+              color: "#FFFFFF",
+              background: ui.primary,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.65 : 1,
+              boxShadow: "0 4px 14px rgba(29, 78, 216, 0.35)",
+            }}
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>
@@ -153,10 +233,8 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <ThemeProvider defaultTheme="corporateBlue">
-      <Suspense fallback={<div className="min-h-screen" style={{ background: "var(--ui-sidebar)" }} />}>
-        <LoginForm />
-      </Suspense>
-    </ThemeProvider>
+    <Suspense fallback={<div style={{ minHeight: "100vh", background: ui.pageBg }} />}>
+      <LoginForm />
+    </Suspense>
   );
 }

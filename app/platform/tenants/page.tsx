@@ -110,7 +110,16 @@ export default function TenantsPage() {
   const [credentials, setCredentials] = useState<{
     workspace: string;
     adminEmail: string;
-    adminPassword: string;
+    adminPassword: string | null;
+    mustSetPassword?: boolean;
+  } | null>(null);
+  const [inviteStatus, setInviteStatus] = useState<{
+    sent: boolean;
+    skipped?: boolean;
+    error?: string;
+    to?: string;
+    messageId?: string;
+    inviteUrl?: string;
   } | null>(null);
 
   const setField = <K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) => {
@@ -167,6 +176,7 @@ export default function TenantsPage() {
     setForm(EMPTY_FORM);
     setSlugManual(false);
     setError("");
+    setInviteStatus(null);
     setModalOpen(true);
   };
 
@@ -191,6 +201,8 @@ export default function TenantsPage() {
       setModalOpen(false);
       setForm(EMPTY_FORM);
       if (data.credentials) setCredentials(data.credentials);
+      if (data.invite) setInviteStatus(data.invite);
+      else setInviteStatus(null);
       fetchTenants();
     } catch (e: any) {
       setError(e.message);
@@ -516,11 +528,8 @@ export default function TenantsPage() {
                   <Field label="Tenant Admin Name">
                     <input className={inputCls} style={inputStyle} value={form.adminName} onChange={(e) => setField("adminName", e.target.value)} placeholder="Defaults to contact / company admin" />
                   </Field>
-                  <Field label="Tenant Admin Email" hint="Leave blank to use admin@{slug}.local">
+                  <Field label="Tenant Admin Email" hint="Required for Brevo invitation. Buyer gets a set-password link — no password is emailed.">
                     <input type="email" className={inputCls} style={inputStyle} value={form.adminEmail} onChange={(e) => setField("adminEmail", e.target.value)} placeholder="admin@skyline.example.com" />
-                  </Field>
-                  <Field label="Temp Password" hint="Defaults to password123 — shown once after create">
-                    <input className={inputCls} style={inputStyle} value={form.adminPassword} onChange={(e) => setField("adminPassword", e.target.value)} placeholder="password123" />
                   </Field>
                   <Field label="Initial Plan">
                     <select className={inputCls} style={inputStyle} value={form.planId} onChange={(e) => setField("planId", e.target.value)}>
@@ -567,9 +576,31 @@ export default function TenantsPage() {
             data-testid="tenant-credentials"
           >
             <h2 className="text-xl font-bold mb-1">Tenant ready</h2>
-            <p className="text-sm mb-5" style={{ color: "var(--ui-text-muted)" }}>
-              Share these credentials once. Sign in at the central login with the workspace filled in.
+            <p className="text-sm mb-4" style={{ color: "var(--ui-text-muted)" }}>
+              {credentials.mustSetPassword
+                ? "The buyer creates their own password from the invite link. No password is emailed."
+                : "Admin can sign in at /login with the credentials below."}
             </p>
+
+            {inviteStatus?.sent ? (
+              <div
+                className="mb-4 rounded-lg px-3 py-2.5 text-sm"
+                style={{ background: "#ECFDF5", color: "#065F46", border: "1px solid #A7F3D0" }}
+                data-testid="invite-sent"
+              >
+                Set-password email sent via Brevo to <strong>{inviteStatus.to}</strong>
+              </div>
+            ) : inviteStatus ? (
+              <div
+                className="mb-4 rounded-lg px-3 py-2.5 text-sm"
+                style={{ background: "#FFFBEB", color: "#92400E", border: "1px solid #FDE68A" }}
+                data-testid="invite-skipped"
+              >
+                Invite email not sent{inviteStatus.to ? ` to ${inviteStatus.to}` : ""}:{" "}
+                {inviteStatus.error || "Unknown error"}. Share the invite link below manually.
+              </div>
+            ) : null}
+
             <dl className="space-y-3 text-sm mb-6">
               <div className="flex justify-between gap-3">
                 <dt style={{ color: "var(--ui-text-muted)" }}>Workspace</dt>
@@ -579,23 +610,61 @@ export default function TenantsPage() {
                 <dt style={{ color: "var(--ui-text-muted)" }}>Admin email</dt>
                 <dd className="font-medium break-all">{credentials.adminEmail}</dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt style={{ color: "var(--ui-text-muted)" }}>Temp password</dt>
-                <dd className="font-mono font-semibold">{credentials.adminPassword}</dd>
-              </div>
+              {credentials.adminPassword ? (
+                <div className="flex justify-between gap-3">
+                  <dt style={{ color: "var(--ui-text-muted)" }}>Password</dt>
+                  <dd className="font-mono font-semibold">{credentials.adminPassword}</dd>
+                </div>
+              ) : (
+                <div className="flex justify-between gap-3">
+                  <dt style={{ color: "var(--ui-text-muted)" }}>Password</dt>
+                  <dd className="font-medium">Buyer sets via invite</dd>
+                </div>
+              )}
+              {inviteStatus?.inviteUrl ? (
+                <div className="pt-2">
+                  <dt className="mb-1" style={{ color: "var(--ui-text-muted)" }}>
+                    Invite link (share if email is delayed)
+                  </dt>
+                  <dd>
+                    <a
+                      href={inviteStatus.inviteUrl}
+                      className="text-sm font-medium break-all underline"
+                      style={{ color: "var(--ui-primary)" }}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {inviteStatus.inviteUrl}
+                    </a>
+                  </dd>
+                </div>
+              ) : null}
             </dl>
             <div className="flex justify-end gap-2">
-              <button
-                className="px-4 py-2 rounded-lg border text-sm"
-                style={{ borderColor: "var(--ui-border)" }}
-                onClick={() => window.open(`/login?workspace=${credentials.workspace}`, "_blank")}
-              >
-                Open login
-              </button>
+              {inviteStatus?.inviteUrl ? (
+                <button
+                  className="px-4 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "var(--ui-border)" }}
+                  onClick={() => window.open(inviteStatus.inviteUrl, "_blank")}
+                >
+                  Open invite
+                </button>
+              ) : (
+                <button
+                  className="px-4 py-2 rounded-lg border text-sm"
+                  style={{ borderColor: "var(--ui-border)" }}
+                  onClick={() => window.open("/login", "_blank")}
+                >
+                  Open login
+                </button>
+              )}
               <button
                 className="px-4 py-2 rounded-lg font-semibold text-sm"
                 style={{ background: "var(--ui-primary)", color: "#fff" }}
-                onClick={() => setCredentials(null)}
+                onClick={() => {
+                  setCredentials(null);
+                  setInviteStatus(null);
+                }}
               >
                 Done
               </button>

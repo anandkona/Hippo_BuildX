@@ -17,11 +17,25 @@ const tenantContextStorage = new AsyncLocalStorage<TenantContext>();
  * Extracts context from Request headers injected by middleware.
  */
 export function extractContextFromHeaders(headers: Headers): TenantContext {
+  const parseList = (key: string): string[] => {
+    try {
+      const raw = headers.get(key);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+    } catch {
+      return [];
+    }
+  };
+
   return {
     tenantId: headers.get('x-tenant-id') || '',
     schemaName: headers.get('x-schema-name') || '',
     userId: headers.get('x-user-id') || undefined,
-    roles: JSON.parse(headers.get('x-roles') || '[]'),
+    roles: parseList('x-roles'),
+    permissions: parseList('x-permissions'),
+    projectIds: parseList('x-project-ids'),
+    locationIds: parseList('x-location-ids'),
   };
 }
 

@@ -21,3 +21,22 @@ This document records the canonical architectural decisions for the BUILD-EX pro
 ## 5. Control Plane
 **Decision:** Shared `public` schema in the same PostgreSQL cluster.
 **Rationale:** Holds the `tenants` catalog (provisioning, active, suspended) to direct routing and lifecycle jobs, along with future platform metadata.
+
+## 6. Active-tenant enforcement
+**Decision:** Enforce `tenants.status === 'active'` inside API helpers (`requireTenantApi` / `assertTenantActive`), not Edge middleware.
+**Rationale:** Next.js middleware runs on the Edge runtime and cannot reliably open a Postgres connection. JWT middleware still strips untrusted tenant headers and requires a valid access token for all non-public `/api/v1/*` routes.
+
+## 7. Platform refresh sessions
+**Decision:** Platform admins receive HttpOnly `refresh_token` cookies backed by `public.platform_sessions` (hashed). `/api/v1/auth/refresh` rotates either platform or tenant refresh tokens.
+**Rationale:** Matches tenant JWT+refresh parity for Phase 1 DoD without waiting for Phase 12 session ops UI.
+
+## 8. Four-axis RBAC delivery
+**Decision:** Ship `evaluateScope` (role ∧ module ∧ project ∧ location) in Phase 1; wire through `requireTenantApi`. Resource-level project/location arguments are optional until domain modules exist (Phase 2+).
+**Rationale:** Claims and assignment columns already exist on `user_roles`; domain APIs will pass target IDs as modules land.
+
+## 9. Audit interceptor
+**Decision:** State-changing tenant admin routes use `withAudit` / `withTenantMutation` (`lib/api/tenant-admin.ts`) so AuthZ → handler → audit on 2xx is shared, not hand-rolled per handler.
+**Rationale:** PRD §14 requires a shared interceptor on mutations; Next.js App Router has no Nest-style interceptor, so an HOF wrapping route handlers is the equivalent.
+
+## 10. TODO (Phase 2) — single source of truth for role permissions
+**TODO:** Deprecate `roles.permissions` JSONB in tenant migration `001_identity_core` once the relational `permissions` table (`module`, `action`, optional project/location) is the sole AuthZ source. Today `loadTenantAuthClaims` unions both for backward compatibility; Phase 2 should migrate JSONB rows into `permissions`, drop the column, and update Tenant Admin role editors accordingly.

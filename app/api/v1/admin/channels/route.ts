@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
-import { extractContextFromHeaders } from '@/lib/tenant-context';
 
 interface ChannelConfig {
   apiKey?: string;
@@ -27,20 +27,11 @@ function maskConfig(config: Record<string, unknown>): Record<string, unknown> {
   return masked;
 }
 
-function requireAdmin(headers: Headers) {
-  const context = extractContextFromHeaders(headers);
-  if (!context.schemaName || !context.roles?.includes('tenant_admin')) {
-    return null;
-  }
-  return context;
-}
-
 export async function GET(req: Request) {
   try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(req, { permission: 'channels.read' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const sql = createTenantSql(context.schemaName);
     const rows = await sql`
@@ -61,13 +52,9 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
+export const POST = withAudit(
+  { permission: 'channels.update', resource: 'channel', action: 'Upserted Channel' },
+  async ({ req, context, audit }) => {
     const body = await req.json();
     const { channel, config, is_active } = body as {
       channel?: string;
@@ -96,17 +83,25 @@ export async function POST(req: Request) {
         SET config = ${JSON.stringify(config)}, is_active = ${is_active ?? true}, updated_at = NOW()
         WHERE id = ${existing.id}
       `;
+      audit({
+        action: 'Updated Channel',
+        resourceId: existing.id,
+        details: { channel },
+      });
       return NextResponse.json({ data: { message: 'Channel updated' } });
     }
 
-    await sql`
+    const [created] = await sql`
       INSERT INTO tenant_channels (tenant_id, channel, config, is_active)
       VALUES (${context.tenantId}, ${channel}, ${JSON.stringify(config)}, ${is_active ?? true})
+      RETURNING id
     `;
 
+    audit({
+      action: 'Created Channel',
+      resourceId: created?.id,
+      details: { channel },
+    });
     return NextResponse.json({ data: { message: 'Channel created' } }, { status: 201 });
-  } catch (error) {
-    console.error('Create/update channel error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

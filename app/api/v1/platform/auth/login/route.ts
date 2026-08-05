@@ -4,7 +4,7 @@ import { platformUsers } from '@/lib/db/schema/control-plane';
 import { eq } from 'drizzle-orm';
 import { verifyPassword } from '@/lib/auth/crypto';
 import { signAccessToken } from '@/lib/auth/jwt';
-import { createSession } from '@/lib/auth/session';
+import { createPlatformSession } from '@/lib/auth/platform-session';
 
 export async function POST(req: Request) {
   try {
@@ -15,12 +15,10 @@ export async function POST(req: Request) {
     }
 
     const db = getDb();
-    
-    // 1. Find the platform user
+
     const [user] = await db.select().from(platformUsers).where(eq(platformUsers.email, email));
-    
+
     if (!user) {
-      // Fake delay to prevent timing attacks
       await verifyPassword('dummy', 'dummyhash');
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
@@ -29,13 +27,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Account suspended' }, { status: 403 });
     }
 
-    // 2. Verify password
     const isValid = await verifyPassword(password, user.passwordHash);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // 3. Issue Access Token (JWT)
     const roles = [user.role || 'platform_admin', 'super_admin'];
     const accessToken = await signAccessToken({
       userId: user.id,
@@ -45,27 +41,39 @@ export async function POST(req: Request) {
       isPlatformAdmin: true,
     });
 
-    // 4. Update last login
     await db.update(platformUsers).set({ lastLoginAt: new Date() }).where(eq(platformUsers.id, user.id));
 
-    // 5. Set HttpOnly Cookie
+    const refreshToken = await createPlatformSession(
+      user.id,
+      req.headers.get('x-forwarded-for') || undefined,
+      req.headers.get('user-agent') || undefined
+    );
+
     const response = NextResponse.json({
       message: 'Login successful',
       scope: 'platform',
       roles,
       redirectTo: '/platform',
     });
-    
+
+    const isProd = process.env.NODE_ENV === 'production';
     response.cookies.set('access_token', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      maxAge: 15 * 60,
+      path: '/',
+    });
+    response.cookies.set('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60,
       path: '/',
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Platform login error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -6,7 +6,8 @@ import { extractContextFromHeaders } from '@/lib/tenant-context';
 import { eq, desc } from 'drizzle-orm';
 import { logPlatformAudit, getClientIp } from '@/lib/platform-audit';
 import { DEFAULT_TENANT_ADMIN_PASSWORD, provisionTenant } from '@/lib/tenants/provision';
-
+import { generateInviteToken, sendTenantAdminInvite } from '@/lib/tenants/invite';
+import type { TenantInviteResult } from '@/lib/tenants/invite';
 function clean(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
@@ -50,8 +51,15 @@ export async function POST(req: Request) {
     const name = clean(body.name);
     const slug = clean(body.slug)?.toLowerCase().replace(/[^a-z0-9-]/g, '');
     const planId = clean(body.planId);
-    const adminPassword = clean(body.adminPassword) || DEFAULT_TENANT_ADMIN_PASSWORD;
     const profile = pickTenantProfile(body);
+    const sendInvite = body.sendInvite !== false;
+    // Buyer sets password via invite email. Optional adminPassword only when invite is skipped.
+    let adminPassword = clean(body.adminPassword);
+    if (sendInvite || !adminPassword) {
+      // Provision with an unknown hash; invite accept overwrites it.
+      adminPassword = generateInviteToken();
+    }
+    adminPassword = adminPassword || DEFAULT_TENANT_ADMIN_PASSWORD;
 
     if (!name || !slug) {
       return NextResponse.json({ error: 'Company name and subdomain are required' }, { status: 400 });
@@ -142,27 +150,64 @@ export async function POST(req: Request) {
       }
     }
 
+    let invite: TenantInviteResult | null = null;
+    const [fresh] = await db.select().from(tenants).where(eq(tenants.id, newTenant.id));
+
+    if (sendInvite && fresh?.status === 'active') {
+      invite = await sendTenantAdminInvite({
+        tenantId: fresh.id,
+        companyName: name!,
+        workspace: slug!,
+        adminName: profile.adminName || `${name} Admin`,
+        adminEmail: credentials.adminEmail,
+        req,
+      });
+    } else if (sendInvite) {
+      invite = {
+        sent: false,
+        skipped: true,
+        error: 'Invite deferred until tenant becomes active',
+        to: credentials.adminEmail,
+      };
+    }
+
+    // Never return a usable password when invite flow is used — buyer creates it.
+    const safeCredentials = {
+      workspace: credentials.workspace,
+      adminEmail: credentials.adminEmail,
+      adminPassword: sendInvite ? null : credentials.adminPassword,
+      mustSetPassword: Boolean(sendInvite),
+    };
+
     await logPlatformAudit({
       actorUserId: context.userId,
       action: 'Created Tenant',
       resource: 'tenant',
       resourceId: newTenant.id,
-      details: queueError
-        ? `Created tenant ${name} via sync fallback (${queueError})`
-        : `Created tenant ${name} (${provisionMode})`,
+      details: [
+        queueError
+          ? `Created tenant ${name} via sync fallback (${queueError})`
+          : `Created tenant ${name} (${provisionMode})`,
+        invite?.sent
+          ? `Invite emailed to ${invite.to}`
+          : invite
+            ? `Invite not sent: ${invite.error}`
+            : 'Invite not requested',
+      ].join(' · '),
       ipAddress: getClientIp(req),
     });
-
-    const [fresh] = await db.select().from(tenants).where(eq(tenants.id, newTenant.id));
 
     return NextResponse.json(
       {
         message:
           fresh?.status === 'active'
-            ? 'Tenant provisioned and ready for login'
+            ? invite?.sent
+              ? 'Tenant provisioned — invite sent for admin to set password'
+              : 'Tenant provisioned and ready for login'
             : 'Tenant provisioning started',
         tenant: fresh || newTenant,
-        credentials,
+        credentials: safeCredentials,
+        invite,
         provisionMode,
         queueWarning: queueError,
       },

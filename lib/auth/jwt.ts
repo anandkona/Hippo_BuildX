@@ -9,6 +9,9 @@ export interface TokenPayload {
   tenantId: string;
   schemaName: string;
   roles: string[];
+  permissions?: string[];
+  projectIds?: string[];
+  locationIds?: string[];
   isPlatformAdmin?: boolean;
 }
 
@@ -31,7 +34,7 @@ export async function verifyAccessToken(token: string): Promise<TokenPayload | n
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return payload as unknown as TokenPayload;
-  } catch (err) {
+  } catch { 
     return null;
   }
 }
