@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     
     const isProd = process.env.NODE_ENV === 'production';
     response.cookies.set('access_token', newAccessToken, {
-      httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 15 * 60, path: '/'
+      httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60, path: '/'
     });
     response.cookies.set('refresh_token', newRefreshToken, {
       httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 30 * 24 * 60 * 60, path: '/api/v1/auth/refresh'

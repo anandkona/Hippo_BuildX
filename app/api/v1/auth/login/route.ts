@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     // Set HttpOnly Cookies
     const isProd = process.env.NODE_ENV === 'production';
     response.cookies.set('access_token', accessToken, {
-      httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 15 * 60, path: '/'
+      httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 7 * 24 * 60 * 60, path: '/'
     });
     response.cookies.set('refresh_token', refreshToken, {
       httpOnly: true, secure: isProd, sameSite: 'strict', maxAge: 30 * 24 * 60 * 60, path: '/api/v1/auth/refresh'

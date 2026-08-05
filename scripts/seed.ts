@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ path: '.env.local' });
 import { getSql, getDb } from '../lib/db/client';
 import {
   platformUsers,
