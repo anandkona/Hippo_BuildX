@@ -152,7 +152,7 @@ function Field({ label, value, onChange }: { label: string; value: any; onChange
   return (
     <div>
       <label className="block text-sm font-semibold mb-1.5">{label}</label>
-      <input className="w-full p-2.5 border rounded-lg" style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+      <input className="w-full p-2.5 border rounded-lg outline-none text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent" style={{ borderColor: "var(--ui-border)", color: "var(--ui-text)" }} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }

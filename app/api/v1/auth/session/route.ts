@@ -58,7 +58,7 @@ async function loginPlatform(email: string, password: string, req: Request) {
     httpOnly: true,
     secure: isProd,
     sameSite: 'strict',
-    maxAge: 15 * 60,
+    maxAge: 7 * 24 * 60 * 60,
     path: '/',
   });
   response.cookies.set('refresh_token', refreshToken, {
@@ -135,7 +135,7 @@ async function loginTenantByRow(
     httpOnly: true,
     secure: isProd,
     sameSite: 'strict',
-    maxAge: 15 * 60,
+    maxAge: 7 * 24 * 60 * 60,
     path: '/',
   });
   response.cookies.set('refresh_token', refreshToken, {

@@ -16,13 +16,13 @@ export interface TokenPayload {
 }
 
 /**
- * Signs a new short-lived JWT (e.g. 15 minutes) for the user.
+ * Signs a new JWT (7 days) for the user.
  */
 export async function signAccessToken(payload: TokenPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('15m')
+    .setExpirationTime('7d')
     .sign(JWT_SECRET);
 }
 
