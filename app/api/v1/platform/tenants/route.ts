@@ -6,6 +6,8 @@ import { extractContextFromHeaders } from '@/lib/tenant-context';
 import { eq, desc } from 'drizzle-orm';
 import { logPlatformAudit, getClientIp } from '@/lib/platform-audit';
 import { DEFAULT_TENANT_ADMIN_PASSWORD, provisionTenant } from '@/lib/tenants/provision';
+import { generateTempPassword, sendTenantAdminInvite } from '@/lib/tenants/invite';
+import type { TenantInviteResult } from '@/lib/tenants/invite';
 
 function clean(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -50,8 +52,11 @@ export async function POST(req: Request) {
     const name = clean(body.name);
     const slug = clean(body.slug)?.toLowerCase().replace(/[^a-z0-9-]/g, '');
     const planId = clean(body.planId);
-    const adminPassword = clean(body.adminPassword) || DEFAULT_TENANT_ADMIN_PASSWORD;
+    // Prefer a strong generated temp password for email invites; allow override from API/UI.
+    const adminPassword =
+      clean(body.adminPassword) || generateTempPassword(14) || DEFAULT_TENANT_ADMIN_PASSWORD;
     const profile = pickTenantProfile(body);
+    const sendInvite = body.sendInvite !== false;
 
     if (!name || !slug) {
       return NextResponse.json({ error: 'Company name and subdomain are required' }, { status: 400 });
@@ -142,27 +147,56 @@ export async function POST(req: Request) {
       }
     }
 
+    let invite: TenantInviteResult | null = null;
+    const [fresh] = await db.select().from(tenants).where(eq(tenants.id, newTenant.id));
+
+    if (sendInvite && fresh?.status === 'active') {
+      invite = await sendTenantAdminInvite({
+        companyName: name!,
+        workspace: slug!,
+        adminName: profile.adminName || `${name} Admin`,
+        adminEmail: credentials.adminEmail,
+        tempPassword: credentials.adminPassword,
+        req,
+      });
+    } else if (sendInvite) {
+      invite = {
+        sent: false,
+        skipped: true,
+        error: 'Invite deferred until tenant becomes active',
+        to: credentials.adminEmail,
+      };
+    }
+
     await logPlatformAudit({
       actorUserId: context.userId,
       action: 'Created Tenant',
       resource: 'tenant',
       resourceId: newTenant.id,
-      details: queueError
-        ? `Created tenant ${name} via sync fallback (${queueError})`
-        : `Created tenant ${name} (${provisionMode})`,
+      details: [
+        queueError
+          ? `Created tenant ${name} via sync fallback (${queueError})`
+          : `Created tenant ${name} (${provisionMode})`,
+        invite?.sent
+          ? `Invite emailed to ${invite.to}`
+          : invite
+            ? `Invite not sent: ${invite.error}`
+            : 'Invite not requested',
+      ].join(' · '),
       ipAddress: getClientIp(req),
     });
-
-    const [fresh] = await db.select().from(tenants).where(eq(tenants.id, newTenant.id));
 
     return NextResponse.json(
       {
         message:
           fresh?.status === 'active'
-            ? 'Tenant provisioned and ready for login'
+            ? invite?.sent
+              ? 'Tenant provisioned and invitation email sent'
+              : 'Tenant provisioned and ready for login'
             : 'Tenant provisioning started',
         tenant: fresh || newTenant,
         credentials,
+        invite,
         provisionMode,
         queueWarning: queueError,
       },
