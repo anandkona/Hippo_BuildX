@@ -57,24 +57,36 @@ On `401` from APIs: call refresh once, then retry; if still failing, send user t
 
 `POST /api/v1/platform/tenants` (requires platform JWT with `super_admin`).
 
-Minimum body: `{ name, slug }`.  
-For email invites, always send a **real** `adminEmail` (or `contactEmail`). Blank → `admin@{slug}.local` (invite skipped).
+Minimum body: `{ name, slug, adminEmail }`.  
+Buyer **creates their own password** via a Brevo set-password link (`/invite?token=...`). No password is emailed.
 
 Response highlights:
 
 ```json
 {
   "tenant": { "status": "active", "...": "..." },
-  "credentials": { "workspace": "acme", "adminEmail": "...", "adminPassword": "..." },
-  "invite": { "sent": true, "to": "...", "messageId": "..." }
+  "credentials": {
+    "workspace": "acme",
+    "adminEmail": "...",
+    "adminPassword": null,
+    "mustSetPassword": true
+  },
+  "invite": {
+    "sent": true,
+    "to": "...",
+    "messageId": "...",
+    "inviteUrl": "http://localhost:3000/invite?token=..."
+  }
 }
 ```
 
 UI should:
 
-1. Show credentials modal (password shown once).
+1. Show that the buyer must set a password (do not show a temp password when `mustSetPassword` is true).
 2. Show green “Invite sent” if `invite.sent`, else amber warning with `invite.error`.
-3. Deep-link tenant login to `/login` (no workspace field required when email is unique).
+3. Always surface `invite.inviteUrl` so platform operators can share it if email is delayed/spam-foldered.
+4. Accept flow: `GET /api/v1/auth/invite?token=...` → `POST /api/v1/auth/invite/accept` with `{ token, password, name? }` → cookies set → `/dashboard`.
+5. Resend: `POST /api/v1/platform/tenants/{id}/invite`.
 
 ## API surfaces
 
@@ -84,7 +96,7 @@ Requires `isPlatformAdmin` JWT. Used by `/platform` screens.
 
 | Area | Methods |
 |------|---------|
-| Tenants | `GET/POST /tenants`, `GET/PATCH/POST /tenants/{id}`, `POST /tenants/{id}/suspend` |
+| Tenants | `GET/POST /tenants`, `GET/PATCH /tenants/{id}`, `POST /tenants/{id}/suspend`, `POST /tenants/{id}/invite` |
 | Plans | `GET/POST /plans`, `GET/PUT/DELETE /plans/{id}` |
 | Subscriptions | `GET/POST /subscriptions` |
 | Feature flags | `GET/POST /feature-flags`, `PUT /feature-flags/{id}` |

@@ -5,14 +5,16 @@ import { usePathname } from "next/navigation";
 import TenantSidebar from "./TenantSidebar";
 import { applyTheme } from "@/components/theme/theme";
 
-const FULLSCREEN_ROUTES = ["/login", "/platform/login", "/api-docs"];
+const FULLSCREEN_ROUTES = ["/login", "/platform/login", "/api-docs", "/invite"];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPlatform = pathname.startsWith("/platform");
   const isApiDocs = pathname === "/api-docs" || pathname.startsWith("/api-docs/");
+  const isInvite = pathname === "/invite" || pathname.startsWith("/invite/");
   const isFullscreen =
-    FULLSCREEN_ROUTES.includes(pathname) || isPlatform || isApiDocs;
+    FULLSCREEN_ROUTES.includes(pathname) || isPlatform || isApiDocs || isInvite;
+
 
 
   useEffect(() => {

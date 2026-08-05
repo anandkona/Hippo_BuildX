@@ -3,8 +3,8 @@ export type TenantInviteEmailInput = {
   workspace: string;
   adminName: string;
   adminEmail: string;
-  tempPassword: string;
-  loginUrl: string;
+  inviteUrl: string;
+  expiresHours: number;
 };
 
 function escapeHtml(value: string) {
@@ -15,14 +15,15 @@ function escapeHtml(value: string) {
     .replace(/"/g, '&quot;');
 }
 
+/** Invite email: buyer sets their own password via secure link (no password in email). */
 export function buildTenantInviteEmail(input: TenantInviteEmailInput) {
-  const subject = `You're invited to ${input.companyName} on BuildX`;
+  const subject = `Set up your BuildX account for ${input.companyName}`;
   const name = escapeHtml(input.adminName || 'there');
   const company = escapeHtml(input.companyName);
   const workspace = escapeHtml(input.workspace);
   const email = escapeHtml(input.adminEmail);
-  const password = escapeHtml(input.tempPassword);
-  const loginUrl = escapeHtml(input.loginUrl);
+  const inviteUrl = escapeHtml(input.inviteUrl);
+  const hours = String(input.expiresHours);
 
   const textContent = [
     `Hello ${input.adminName || 'there'},`,
@@ -31,10 +32,11 @@ export function buildTenantInviteEmail(input: TenantInviteEmailInput) {
     '',
     `Workspace: ${input.workspace}`,
     `Sign-in email: ${input.adminEmail}`,
-    `Temporary password: ${input.tempPassword}`,
-    `Login: ${input.loginUrl}`,
     '',
-    'For security, please sign in and change your password immediately.',
+    `Create your own password using this link (valid ${input.expiresHours} hours):`,
+    input.inviteUrl,
+    '',
+    'No password was set for you — choose one yourself on that page, then sign in.',
     '',
     '— BuildX by Hippo Cloud Technologies',
   ].join('\n');
@@ -54,7 +56,7 @@ export function buildTenantInviteEmail(input: TenantInviteEmailInput) {
           <tr>
             <td style="background:#0f2744;padding:28px 32px;">
               <div style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#93c5fd;font-weight:600;">BuildX</div>
-              <div style="margin-top:8px;font-size:22px;line-height:1.3;color:#ffffff;font-weight:700;">Your workspace is ready</div>
+              <div style="margin-top:8px;font-size:22px;line-height:1.3;color:#ffffff;font-weight:700;">Create your password</div>
             </td>
           </tr>
           <tr>
@@ -62,33 +64,32 @@ export function buildTenantInviteEmail(input: TenantInviteEmailInput) {
               <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Hello ${name},</p>
               <p style="margin:0 0 20px;font-size:15px;line-height:1.6;">
                 Your organization <strong>${company}</strong> has been provisioned on BuildX.
-                Use the details below to access the tenant admin dashboard.
+                Click below to choose your own password and activate your admin access.
               </p>
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin:0 0 24px;">
                 <tr>
                   <td style="padding:16px 18px;font-size:14px;line-height:1.7;">
                     <div><span style="color:#64748b;">Company</span><br/><strong>${company}</strong></div>
                     <div style="margin-top:12px;"><span style="color:#64748b;">Workspace</span><br/><strong style="font-family:Consolas,Monaco,monospace;">${workspace}</strong></div>
-                    <div style="margin-top:12px;"><span style="color:#64748b;">Admin email</span><br/><strong>${email}</strong></div>
-                    <div style="margin-top:12px;"><span style="color:#64748b;">Temporary password</span><br/><strong style="font-family:Consolas,Monaco,monospace;">${password}</strong></div>
+                    <div style="margin-top:12px;"><span style="color:#64748b;">Your sign-in email</span><br/><strong>${email}</strong></div>
                   </td>
                 </tr>
               </table>
               <p style="margin:0 0 24px;text-align:center;">
-                <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:8px;">
-                  Sign in to BuildX
+                <a href="${inviteUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:8px;">
+                  Set my password
                 </a>
               </p>
               <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">
-                For security, change this temporary password right after your first login.
-                If you did not expect this invitation, contact your BuildX administrator.
+                This link expires in ${hours} hours. We never send your password by email — you create it yourself.
+                If you did not expect this invitation, ignore this message.
               </p>
             </td>
           </tr>
           <tr>
             <td style="padding:18px 32px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:12px;color:#94a3b8;line-height:1.5;">
               Sent by BuildX · Hippo Cloud Technologies<br/>
-              Login URL: ${loginUrl}
+              Invite link: ${inviteUrl}
             </td>
           </tr>
         </table>

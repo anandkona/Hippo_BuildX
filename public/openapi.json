@@ -3,7 +3,7 @@
   "info": {
     "title": "BuildX / Hippo BuildX API",
     "version": "0.1.0",
-    "description": "Phase 0/1 platform + tenant admin APIs.\n\n**Auth:** HttpOnly cookies (`access_token`, `refresh_token`) or `Authorization: Bearer <jwt>`.\n\n**Central login:** `POST /api/v1/auth/session` with `{ email, password }`.\n\n**Tenant invite:** `POST /api/v1/platform/tenants` returns `credentials` + Brevo `invite` status when provision completes.\n\n**UI guide:** `docs/UI-BACKEND-GUIDE.md`"
+    "description": "Phase 0/1 platform + tenant admin APIs.\n\n**Auth:** HttpOnly cookies (`access_token`, `refresh_token`) or `Authorization: Bearer <jwt>`.\n\n**Central login:** `POST /api/v1/auth/session` with `{ email, password }`.\n\n**Tenant invite:** Buyer sets their own password via `/invite?token=...` (Brevo set-password link). `POST /api/v1/platform/tenants` returns `credentials.mustSetPassword` + `invite.inviteUrl`.\n\n**UI guide:** `docs/UI-BACKEND-GUIDE.md`"
   },
   "servers": [
     { "url": "http://localhost:3000", "description": "Local" },
@@ -90,9 +90,11 @@
             "description": "Required for Brevo invite (not .local)",
             "example": "admin@skyline.example.com"
           },
-          "adminPassword": { "type": "string", "description": "Optional; auto-generated if omitted" },
-          "sendInvite": { "type": "boolean", "default": true },
-          "legalName": { "type": "string" },
+          "adminPassword": {
+            "type": "string",
+            "description": "Only used when sendInvite=false. When invite is on, buyer sets password via link."
+          },
+          "sendInvite": { "type": "boolean", "default": true },          "legalName": { "type": "string" },
           "industry": { "type": "string", "example": "Construction" },
           "companySize": { "type": "string" },
           "gstin": { "type": "string" },
@@ -180,12 +182,14 @@
           "credentials": {
             "workspace": "skyline",
             "adminEmail": "admin@skyline.example.com",
-            "adminPassword": "Ab3$kL9!pQ2mNx"
+            "adminPassword": null,
+            "mustSetPassword": true
           },
           "invite": {
             "sent": true,
             "to": "admin@skyline.example.com",
-            "messageId": "<brevo-message-id>"
+            "messageId": "<brevo-message-id>",
+            "inviteUrl": "http://localhost:3000/invite?token=..."
           },
           "provisionMode": "sync"
         }
@@ -195,7 +199,8 @@
         "properties": {
           "workspace": { "type": "string", "example": "skyline" },
           "adminEmail": { "type": "string", "example": "admin@skyline.example.com" },
-          "adminPassword": { "type": "string", "example": "Ab3$kL9!pQ2mNx" }
+          "adminPassword": { "type": "string", "nullable": true, "description": "null when invite flow is used" },
+          "mustSetPassword": { "type": "boolean" }
         }
       },
       "InviteResult": {
@@ -205,10 +210,11 @@
           "skipped": { "type": "boolean" },
           "to": { "type": "string" },
           "messageId": { "type": "string" },
+          "inviteUrl": { "type": "string", "description": "Share if email is delayed" },
+          "expiresAt": { "type": "string", "format": "date-time" },
           "error": { "type": "string" }
         }
-      },
-      "CreateUserRequest": {
+      },      "CreateUserRequest": {
         "type": "object",
         "required": ["email", "name", "password"],
         "properties": {
@@ -287,6 +293,50 @@
         "responses": {
           "200": { "description": "Ready" },
           "503": { "description": "Not ready" }
+        }
+      }
+    },
+    "/api/v1/auth/invite": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Preview tenant invite (public)",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Invite preview" },
+          "400": { "description": "Invalid/expired/used invite" }
+        }
+      }
+    },
+    "/api/v1/auth/invite/accept": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Accept invite and set password (public)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token", "password"],
+                "properties": {
+                  "token": { "type": "string" },
+                  "password": { "type": "string", "minLength": 8 },
+                  "name": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Password set; session cookies issued" },
+          "400": { "description": "Invalid invite or weak password" }
         }
       }
     },
@@ -415,7 +465,7 @@
         "tags": ["Platform Tenants"],
         "operationId": "createPlatformTenant",
         "summary": "Create + provision tenant (emails invite via Brevo)",
-        "description": "Creates the control-plane row, runs schema provision/migrations, seeds tenant_admin, and (when adminEmail is deliverable) sends a Brevo invite with workspace + temporary password.",
+        "description": "Creates the control-plane row, runs schema provision/migrations, seeds tenant_admin, and (when adminEmail is deliverable) sends a Brevo set-password invite. Buyer creates their own password at /invite — no password is emailed.",
         "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -531,6 +581,34 @@
         "responses": {
           "200": { "description": "Status updated" },
           "400": { "description": "Invalid action / already in state" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/platform/tenants/{id}/invite": {
+      "post": {
+        "tags": ["Platform Tenants"],
+        "operationId": "resendPlatformTenantInvite",
+        "summary": "Resend set-password invite email",
+        "description": "Creates a fresh invite token and emails the set-password link via Brevo. Returns inviteUrl even on delivery failure so operators can share it.",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": {
+            "description": "Invite result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invite": { "$ref": "#/components/schemas/InviteResult" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Tenant not active / no admin email" },
           "403": { "description": "Forbidden" },
           "404": { "description": "Not found" }
         }
