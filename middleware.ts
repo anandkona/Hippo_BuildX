@@ -13,7 +13,7 @@ const PUBLIC_API_ROUTES = [
 ];
 
 // Public page routes (no auth required)
-const PUBLIC_PAGE_ROUTES = ['/login', '/platform/login'];
+const PUBLIC_PAGE_ROUTES = ['/login', '/platform/login', '/api-docs'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -1,0 +1,816 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "BuildX / Hippo BuildX API",
+    "version": "0.1.0",
+    "description": "Phase 0/1 platform + tenant admin APIs. Auth uses HttpOnly cookies (`access_token`, `refresh_token`) and optionally `Authorization: Bearer <access_token>`.\n\n**Central login:** `POST /api/v1/auth/session` (email + password).\n**Tenant provision invite:** after `POST /api/v1/platform/tenants`, Brevo emails the tenant admin when the tenant is `active`."
+  },
+  "servers": [
+    { "url": "http://localhost:3000", "description": "Local" },
+    { "url": "/", "description": "Current host" }
+  ],
+  "tags": [
+    { "name": "Health" },
+    { "name": "Auth" },
+    { "name": "Platform Auth" },
+    { "name": "Platform Tenants" },
+    { "name": "Platform Plans" },
+    { "name": "Platform Subscriptions" },
+    { "name": "Platform Feature Flags" },
+    { "name": "Platform Users" },
+    { "name": "Platform Settings" },
+    { "name": "Platform Metrics" },
+    { "name": "Platform Audit" },
+    { "name": "Tenant Users" },
+    { "name": "Tenant Roles" },
+    { "name": "Tenant Settings" },
+    { "name": "Tenant Channels" },
+    { "name": "Tenant Audit" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "access_token",
+        "description": "HttpOnly JWT set by login/session endpoints"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "details": { "type": "string" }
+        }
+      },
+      "SessionLoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "format": "password" },
+          "workspace": { "type": "string", "description": "Optional tenant slug override" },
+          "tenantSlug": { "type": "string" }
+        }
+      },
+      "TenantLoginRequest": {
+        "type": "object",
+        "required": ["tenantSlug", "email", "password"],
+        "properties": {
+          "tenantSlug": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "format": "password" }
+        }
+      },
+      "PlatformLoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "format": "password" }
+        }
+      },
+      "CreateTenantRequest": {
+        "type": "object",
+        "required": ["name", "slug"],
+        "properties": {
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "planId": { "type": "string", "format": "uuid" },
+          "adminName": { "type": "string" },
+          "adminEmail": { "type": "string", "format": "email", "description": "Required for Brevo invite (not .local)" },
+          "adminPassword": { "type": "string", "description": "Optional; auto-generated if omitted" },
+          "sendInvite": { "type": "boolean", "default": true },
+          "legalName": { "type": "string" },
+          "industry": { "type": "string" },
+          "companySize": { "type": "string" },
+          "gstin": { "type": "string" },
+          "pan": { "type": "string" },
+          "cin": { "type": "string" },
+          "website": { "type": "string" },
+          "addressLine1": { "type": "string" },
+          "addressLine2": { "type": "string" },
+          "city": { "type": "string" },
+          "state": { "type": "string" },
+          "pincode": { "type": "string" },
+          "country": { "type": "string" },
+          "contactName": { "type": "string" },
+          "contactEmail": { "type": "string", "format": "email" },
+          "contactPhone": { "type": "string" },
+          "contactDesignation": { "type": "string" },
+          "billingEmail": { "type": "string", "format": "email" }
+        }
+      },
+      "TenantCredentials": {
+        "type": "object",
+        "properties": {
+          "workspace": { "type": "string" },
+          "adminEmail": { "type": "string" },
+          "adminPassword": { "type": "string" }
+        }
+      },
+      "InviteResult": {
+        "type": "object",
+        "properties": {
+          "sent": { "type": "boolean" },
+          "skipped": { "type": "boolean" },
+          "to": { "type": "string" },
+          "messageId": { "type": "string" },
+          "error": { "type": "string" }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "required": ["email", "name", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "name": { "type": "string" },
+          "password": { "type": "string" },
+          "roleIds": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+        }
+      },
+      "CreateRoleRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "permissions": { "type": "array", "items": { "type": "string" }, "example": ["users.read", "crm.*"] }
+        }
+      },
+      "ChannelUpsertRequest": {
+        "type": "object",
+        "required": ["channel", "config"],
+        "properties": {
+          "channel": { "type": "string", "example": "email" },
+          "config": { "type": "object", "additionalProperties": true },
+          "is_active": { "type": "boolean" }
+        }
+      },
+      "CreatePlanRequest": {
+        "type": "object",
+        "required": ["name", "displayName"],
+        "properties": {
+          "name": { "type": "string" },
+          "displayName": { "type": "string" },
+          "description": { "type": "string" },
+          "price": { "type": "integer" },
+          "billingCycle": { "type": "string", "example": "monthly" },
+          "maxUsers": { "type": "integer" },
+          "maxProjects": { "type": "integer" },
+          "maxStorageGb": { "type": "integer" },
+          "maxApiCalls": { "type": "integer" },
+          "supportLevel": { "type": "string" },
+          "featureFlags": { "type": "object" },
+          "sortOrder": { "type": "integer" }
+        }
+      },
+      "AssignSubscriptionRequest": {
+        "type": "object",
+        "required": ["tenantId", "planId"],
+        "properties": {
+          "tenantId": { "type": "string", "format": "uuid" },
+          "planId": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "example": "active" },
+          "trialEndsAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SuspendRequest": {
+        "type": "object",
+        "properties": {
+          "action": { "type": "string", "enum": ["suspend", "resume"] }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Liveness",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Readiness (DB ping)",
+        "responses": {
+          "200": { "description": "Ready" },
+          "503": { "description": "Not ready" }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Central login (platform or tenant by email)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SessionLoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sets access_token + refresh_token cookies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "scope": { "type": "string", "enum": ["platform", "tenant"] },
+                    "roles": { "type": "array", "items": { "type": "string" } },
+                    "redirectTo": { "type": "string" },
+                    "workspace": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Invalid credentials", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Legacy tenant login (slug + email + password)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TenantLoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Tokens + cookies" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Rotate access/refresh (platform or tenant)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": { "type": "string" },
+                  "tenantSlug": { "type": "string" },
+                  "scope": { "type": "string", "enum": ["platform", "tenant"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "New cookies/tokens" },
+          "401": { "description": "Invalid refresh" }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Revoke refresh session and clear cookies",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "Logged out" } }
+      }
+    },
+    "/api/v1/platform/auth/login": {
+      "post": {
+        "tags": ["Platform Auth"],
+        "summary": "Platform admin login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PlatformLoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cookies set; redirect /platform" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/api/v1/platform/tenants": {
+      "get": {
+        "tags": ["Platform Tenants"],
+        "summary": "List tenants",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Tenant list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tenants": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Platform Tenants"],
+        "summary": "Create + provision tenant (emails invite via Brevo)",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateTenantRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Provisioned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "tenant": { "type": "object" },
+                    "credentials": { "$ref": "#/components/schemas/TenantCredentials" },
+                    "invite": { "$ref": "#/components/schemas/InviteResult" },
+                    "provisionMode": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "202": { "description": "Provisioning started" },
+          "403": { "description": "Forbidden (needs super_admin)" },
+          "409": { "description": "Slug exists" }
+        }
+      }
+    },
+    "/api/v1/platform/tenants/{id}": {
+      "get": {
+        "tags": ["Platform Tenants"],
+        "summary": "Get tenant",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Tenant" }, "404": { "description": "Not found" } }
+      },
+      "patch": {
+        "tags": ["Platform Tenants"],
+        "summary": "Update tenant profile fields",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "post": {
+        "tags": ["Platform Tenants"],
+        "summary": "Retry provision / related tenant action",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/v1/platform/tenants/{id}/suspend": {
+      "post": {
+        "tags": ["Platform Tenants"],
+        "summary": "Suspend or resume tenant (Phase 12 surface)",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SuspendRequest" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated status" } }
+      }
+    },
+    "/api/v1/platform/plans": {
+      "get": {
+        "tags": ["Platform Plans"],
+        "summary": "List plans",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "{ plans: [] }" } }
+      },
+      "post": {
+        "tags": ["Platform Plans"],
+        "summary": "Create plan",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePlanRequest" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" }, "403": { "description": "Forbidden" } }
+      }
+    },
+    "/api/v1/platform/plans/{id}": {
+      "get": {
+        "tags": ["Platform Plans"],
+        "summary": "Get plan",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Plan" } }
+      },
+      "put": {
+        "tags": ["Platform Plans"],
+        "summary": "Update plan",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePlanRequest" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "delete": {
+        "tags": ["Platform Plans"],
+        "summary": "Delete / deactivate plan",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Deleted" } }
+      }
+    },
+    "/api/v1/platform/subscriptions": {
+      "get": {
+        "tags": ["Platform Subscriptions"],
+        "summary": "List subscriptions",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "Subscriptions" } }
+      },
+      "post": {
+        "tags": ["Platform Subscriptions"],
+        "summary": "Assign plan to tenant",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AssignSubscriptionRequest" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Assigned" } }
+      }
+    },
+    "/api/v1/platform/feature-flags": {
+      "get": {
+        "tags": ["Platform Feature Flags"],
+        "summary": "List platform feature flags",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "Flags" } }
+      },
+      "post": {
+        "tags": ["Platform Feature Flags"],
+        "summary": "Create feature flag",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["key", "name"],
+                "properties": {
+                  "key": { "type": "string" },
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "enabled": { "type": "boolean" },
+                  "scope": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/platform/feature-flags/{id}": {
+      "put": {
+        "tags": ["Platform Feature Flags"],
+        "summary": "Update feature flag",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated" } }
+      }
+    },
+    "/api/v1/platform/users": {
+      "get": {
+        "tags": ["Platform Users"],
+        "summary": "List platform users",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "Users" } }
+      },
+      "post": {
+        "tags": ["Platform Users"],
+        "summary": "Create platform user",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "name", "password"],
+                "properties": {
+                  "email": { "type": "string" },
+                  "name": { "type": "string" },
+                  "password": { "type": "string" },
+                  "role": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/platform/users/{id}": {
+      "put": {
+        "tags": ["Platform Users"],
+        "summary": "Update platform user",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "delete": {
+        "tags": ["Platform Users"],
+        "summary": "Deactivate platform user",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Deleted" } }
+      }
+    },
+    "/api/v1/platform/settings": {
+      "get": {
+        "tags": ["Platform Settings"],
+        "summary": "Get platform settings",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "Settings map" } }
+      },
+      "put": {
+        "tags": ["Platform Settings"],
+        "summary": "Update platform settings",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated" } }
+      }
+    },
+    "/api/v1/platform/metrics": {
+      "get": {
+        "tags": ["Platform Metrics"],
+        "summary": "Platform dashboard metrics",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "Metrics payload" } }
+      }
+    },
+    "/api/v1/platform/audit": {
+      "get": {
+        "tags": ["Platform Audit"],
+        "summary": "List platform audit logs",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Audit rows" } }
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "tags": ["Tenant Users"],
+        "summary": "List tenant users",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "{ data, meta }" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Missing permission users.read" }
+        }
+      },
+      "post": {
+        "tags": ["Tenant Users"],
+        "summary": "Create tenant user",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateUserRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created (+ audit)" },
+          "409": { "description": "Email exists" }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "get": {
+        "tags": ["Tenant Users"],
+        "summary": "Get user + roles",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "User" }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "tags": ["Tenant Users"],
+        "summary": "Update user",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "status": { "type": "string" },
+                  "roleIds": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "delete": {
+        "tags": ["Tenant Users"],
+        "summary": "Soft-delete user",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Deleted" } }
+      }
+    },
+    "/api/v1/admin/roles": {
+      "get": {
+        "tags": ["Tenant Roles"],
+        "summary": "List roles",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "{ data, meta }" } }
+      },
+      "post": {
+        "tags": ["Tenant Roles"],
+        "summary": "Create role",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateRoleRequest" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/admin/roles/{id}": {
+      "get": {
+        "tags": ["Tenant Roles"],
+        "summary": "Get role",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Role" } }
+      },
+      "put": {
+        "tags": ["Tenant Roles"],
+        "summary": "Update role",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateRoleRequest" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "delete": {
+        "tags": ["Tenant Roles"],
+        "summary": "Soft-delete role (non-system)",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Deleted" }, "400": { "description": "System role" } }
+      }
+    },
+    "/api/v1/admin/settings": {
+      "get": {
+        "tags": ["Tenant Settings"],
+        "summary": "Get branding / feature_flags settings (flat map)",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "Flat key/value settings" } }
+      },
+      "put": {
+        "tags": ["Tenant Settings"],
+        "summary": "Upsert settings keys (flat or { settings })",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated keys" } }
+      }
+    },
+    "/api/v1/admin/channels": {
+      "get": {
+        "tags": ["Tenant Channels"],
+        "summary": "List channels (sensitive config masked)",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "responses": { "200": { "description": "{ data }" } }
+      },
+      "post": {
+        "tags": ["Tenant Channels"],
+        "summary": "Create or update channel config",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChannelUpsertRequest" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated" }, "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/admin/audit": {
+      "get": {
+        "tags": ["Tenant Audit"],
+        "summary": "List tenant audit logs",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } },
+          { "name": "action", "in": "query", "schema": { "type": "string" } },
+          { "name": "resource", "in": "query", "schema": { "type": "string" } },
+          { "name": "userId", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } }
+        ],
+        "responses": { "200": { "description": "{ data, meta }" } }
+      }
+    }
+  }
+}
