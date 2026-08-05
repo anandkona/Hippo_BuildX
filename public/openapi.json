@@ -3,7 +3,7 @@
   "info": {
     "title": "BuildX / Hippo BuildX API",
     "version": "0.1.0",
-    "description": "Phase 0/1 platform + tenant admin APIs. Auth uses HttpOnly cookies (`access_token`, `refresh_token`) and optionally `Authorization: Bearer <access_token>`.\n\n**Central login:** `POST /api/v1/auth/session` (email + password).\n**Tenant provision invite:** after `POST /api/v1/platform/tenants`, Brevo emails the tenant admin when the tenant is `active`."
+    "description": "Phase 0/1 platform + tenant admin APIs.\n\n**Auth:** HttpOnly cookies (`access_token`, `refresh_token`) or `Authorization: Bearer <jwt>`.\n\n**Central login:** `POST /api/v1/auth/session` with `{ email, password }`.\n\n**Tenant invite:** `POST /api/v1/platform/tenants` returns `credentials` + Brevo `invite` status when provision completes.\n\n**UI guide:** `docs/UI-BACKEND-GUIDE.md`"
   },
   "servers": [
     { "url": "http://localhost:3000", "description": "Local" },
