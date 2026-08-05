@@ -1,30 +1,32 @@
 import { NextResponse } from 'next/server';
 import { createTenantSql, getSql } from '@/lib/db/client';
-import { extractContextFromHeaders } from '@/lib/tenant-context';
+import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
 
-function requireAdmin(headers: Headers) {
-  const context = extractContextFromHeaders(headers);
-  if (!context.schemaName || !context.roles?.includes('tenant_admin')) {
-    return null;
-  }
-  return context;
-}
-
+/**
+ * GET returns a flat branding/settings object (UI-compatible).
+ * PUT accepts flat body OR { settings: {...} }.
+ */
 export async function GET(req: Request) {
   try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(req, { permission: 'settings.read' });
+    if (!auth.ok) return auth.response;
 
-    const sql = createTenantSql(context.schemaName);
+    const sql = createTenantSql(auth.context.schemaName);
     const rows = await sql`
-      SELECT id, tenant_id, key, value, created_at, updated_at
-      FROM tenant_settings
-      ORDER BY key ASC
+      SELECT key, value FROM tenant_settings ORDER BY key ASC
     `;
 
-    return NextResponse.json({ data: rows });
+    const flat: Record<string, unknown> = {};
+    for (const row of rows as Array<{ key: string; value: unknown }>) {
+      flat[row.key] = row.value;
+    }
+
+    // Support legacy profile blob
+    if (flat.profile && typeof flat.profile === 'object') {
+      Object.assign(flat, flat.profile as object);
+    }
+
+    return NextResponse.json(flat);
   } catch (error) {
     console.error('Get settings error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -33,36 +35,39 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(req, { permission: 'settings.update' });
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
-    const settings = body.settings as Record<string, unknown> | undefined;
+    const settings =
+      body.settings && typeof body.settings === 'object'
+        ? (body.settings as Record<string, unknown>)
+        : (body as Record<string, unknown>);
 
-    if (!settings || typeof settings !== 'object' || Object.keys(settings).length === 0) {
-      return NextResponse.json(
-        { error: 'settings must be a non-empty object of key-value pairs' },
-        { status: 400 }
-      );
+    const entries = Object.entries(settings).filter(([k]) => k !== 'settings');
+    if (entries.length === 0) {
+      return NextResponse.json({ error: 'No settings provided' }, { status: 400 });
     }
 
     const sql = getSql();
-
     await sql.begin(async (tx) => {
-      await tx.unsafe(`SET LOCAL search_path TO "${context.schemaName}", public`);
-      for (const [key, value] of Object.entries(settings)) {
+      await tx.unsafe(`SET LOCAL search_path TO "${auth.context.schemaName}", public`);
+      for (const [key, value] of entries) {
         await tx`
           INSERT INTO tenant_settings (tenant_id, key, value)
-          VALUES (${context.tenantId}, ${key}, ${JSON.stringify(value)})
+          VALUES (${auth.context.tenantId}, ${key}, ${JSON.stringify(value)})
           ON CONFLICT (key) DO UPDATE
           SET value = ${JSON.stringify(value)}, updated_at = NOW()
         `;
       }
     });
 
-    return NextResponse.json({ data: { message: 'Settings updated' } });
+    await auditTenantMutation(req, auth.context, 'Updated Settings', 'settings', undefined, {
+      keys: entries.map(([k]) => k),
+    });
+
+    const flat = Object.fromEntries(entries);
+    return NextResponse.json(flat);
   } catch (error) {
     console.error('Update settings error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

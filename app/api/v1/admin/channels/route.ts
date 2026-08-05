@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
+import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
-import { extractContextFromHeaders } from '@/lib/tenant-context';
 
 interface ChannelConfig {
   apiKey?: string;
@@ -27,20 +27,11 @@ function maskConfig(config: Record<string, unknown>): Record<string, unknown> {
   return masked;
 }
 
-function requireAdmin(headers: Headers) {
-  const context = extractContextFromHeaders(headers);
-  if (!context.schemaName || !context.roles?.includes('tenant_admin')) {
-    return null;
-  }
-  return context;
-}
-
 export async function GET(req: Request) {
   try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(req, { permission: 'channels.read' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const sql = createTenantSql(context.schemaName);
     const rows = await sql`
@@ -63,10 +54,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(req, { permission: 'channels.update' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const body = await req.json();
     const { channel, config, is_active } = body as {
@@ -96,6 +86,7 @@ export async function POST(req: Request) {
         SET config = ${JSON.stringify(config)}, is_active = ${is_active ?? true}, updated_at = NOW()
         WHERE id = ${existing.id}
       `;
+      await auditTenantMutation(req, context, 'Updated Channel', 'channel', existing.id, { channel });
       return NextResponse.json({ data: { message: 'Channel updated' } });
     }
 
@@ -104,6 +95,7 @@ export async function POST(req: Request) {
       VALUES (${context.tenantId}, ${channel}, ${JSON.stringify(config)}, ${is_active ?? true})
     `;
 
+    await auditTenantMutation(req, context, 'Created Channel', 'channel', undefined, { channel });
     return NextResponse.json({ data: { message: 'Channel created' } }, { status: 201 });
   } catch (error) {
     console.error('Create/update channel error:', error);

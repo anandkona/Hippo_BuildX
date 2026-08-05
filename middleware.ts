@@ -46,10 +46,14 @@ export async function middleware(request: NextRequest) {
     }
 
     const requestHeaders = new Headers(request.headers);
+    // Always overwrite — never trust client-supplied tenant headers
     requestHeaders.set('x-tenant-id', payload.tenantId);
     requestHeaders.set('x-schema-name', payload.schemaName);
     requestHeaders.set('x-user-id', payload.userId);
     requestHeaders.set('x-roles', JSON.stringify(payload.roles || []));
+    requestHeaders.set('x-permissions', JSON.stringify(payload.permissions || []));
+    requestHeaders.set('x-project-ids', JSON.stringify(payload.projectIds || []));
+    requestHeaders.set('x-location-ids', JSON.stringify(payload.locationIds || []));
     requestHeaders.set('x-is-platform-admin', String(payload.isPlatformAdmin || false));
 
     return NextResponse.next({ request: { headers: requestHeaders } });

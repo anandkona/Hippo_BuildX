@@ -571,7 +571,7 @@ export default function TenantsPage() {
           >
             <h2 className="text-xl font-bold mb-1">Tenant ready</h2>
             <p className="text-sm mb-5" style={{ color: "var(--ui-text-muted)" }}>
-              Share these credentials once. Sign in at the central login with the workspace filled in.
+              Share these credentials once. Sign in at /login with the admin email and temp password.
             </p>
             <dl className="space-y-3 text-sm mb-6">
               <div className="flex justify-between gap-3">
@@ -591,7 +591,7 @@ export default function TenantsPage() {
               <button
                 className="px-4 py-2 rounded-lg border text-sm"
                 style={{ borderColor: "var(--ui-border)" }}
-                onClick={() => window.open(`/login?workspace=${credentials.workspace}`, "_blank")}
+                onClick={() => window.open("/login", "_blank")}
               >
                 Open login
               </button>

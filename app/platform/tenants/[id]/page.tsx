@@ -220,7 +220,7 @@ export default function TenantDetailsPage() {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }} onClick={() => window.open(`/login?workspace=${tenant.slug}`, "_blank")}>
+          <button className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }} onClick={() => window.open("/login", "_blank")}>
             <FiLogIn /> Impersonate
           </button>
           <button className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }} onClick={() => { setEdit(fromTenant(tenant)); setEditOpen(true); }}>

@@ -9,6 +9,9 @@ export interface TokenPayload {
   tenantId: string;
   schemaName: string;
   roles: string[];
+  permissions?: string[];
+  projectIds?: string[];
+  locationIds?: string[];
   isPlatformAdmin?: boolean;
 }
 

@@ -1,25 +1,16 @@
 import { NextResponse } from 'next/server';
+import { auditTenantMutation, requireTenantApi } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
-import { extractContextFromHeaders } from '@/lib/tenant-context';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-function requireAdmin(headers: Headers) {
-  const context = extractContextFromHeaders(headers);
-  if (!context.schemaName || !context.roles?.includes('tenant_admin')) {
-    return null;
-  }
-  return context;
-}
-
 export async function GET(_req: Request, { params }: RouteContext) {
   try {
-    const context = requireAdmin(_req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(_req, { permission: 'roles.read' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const { id } = await params;
     const sql = createTenantSql(context.schemaName);
@@ -55,10 +46,9 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
 export async function PUT(req: Request, { params }: RouteContext) {
   try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(req, { permission: 'roles.update' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const { id } = await params;
     const body = await req.json();
@@ -111,10 +101,9 @@ export async function PUT(req: Request, { params }: RouteContext) {
 
 export async function DELETE(_req: Request, { params }: RouteContext) {
   try {
-    const context = requireAdmin(_req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(_req, { permission: 'roles.delete' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const { id } = await params;
     const sql = createTenantSql(context.schemaName);

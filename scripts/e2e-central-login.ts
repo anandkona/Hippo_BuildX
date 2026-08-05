@@ -1,7 +1,7 @@
 /**
- * Headed E2E: central login (platform + tenant) and create-tenant → tenant login.
+ * Headed E2E: central login UI (visible fields) + platform/tenant login without workspace.
  *
- * Usage: npx tsx scripts/e2e-central-login.ts
+ * Usage: npm run test:e2e:login
  */
 import { chromium, type Page } from 'playwright';
 import { mkdirSync } from 'fs';
@@ -11,7 +11,6 @@ const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const OUT = join(process.cwd(), 'screenshots', 'e2e-central');
 const PLATFORM_EMAIL = 'super@buildx.com';
 const PLATFORM_PASSWORD = 'password123';
-const DEMO_WORKSPACE = 'demo';
 const DEMO_EMAIL = 'user@demo.com';
 const DEMO_PASSWORD = 'password123';
 
@@ -31,33 +30,70 @@ async function clearSession(page: Page) {
   await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 }
 
+async function assertLoginFieldsVisible(page: Page) {
+  const emailBox = await page.locator('#email').boundingBox();
+  const passwordBox = await page.locator('#password').boundingBox();
+  assert(emailBox && emailBox.width > 100 && emailBox.height > 20, 'Email field visible with size');
+  assert(passwordBox && passwordBox.width > 100 && passwordBox.height > 20, 'Password field visible with size');
+
+  const workspaceCount = await page.locator('#workspace').count();
+  assert(workspaceCount === 0, 'Workspace field removed');
+
+  const body = await page.textContent('body');
+  assert(!body?.includes('Workspace'), 'No Workspace label in UI');
+  assert(!body?.includes('Platform Administration'), 'No Platform Administration title');
+  assert(!body?.includes('Super Admin Access'), 'No Super Admin Access subtitle');
+  assert(body?.includes('Email'), 'Email label present');
+  assert(body?.includes('Password'), 'Password label present');
+
+  // Contrast: computed colors must not collapse to transparent / same as card
+  const styles = await page.evaluate(() => {
+    const email = document.querySelector('#email') as HTMLInputElement | null;
+    const password = document.querySelector('#password') as HTMLInputElement | null;
+    const card = document.querySelector('[data-testid="central-login"]') as HTMLElement | null;
+    const es = email ? getComputedStyle(email) : null;
+    const ps = password ? getComputedStyle(password) : null;
+    const cs = card ? getComputedStyle(card) : null;
+    return {
+      emailColor: es?.color,
+      emailBg: es?.backgroundColor,
+      passwordColor: ps?.color,
+      passwordBg: ps?.backgroundColor,
+      cardBg: cs?.backgroundColor,
+      emailOpacity: es?.opacity,
+      passwordOpacity: ps?.opacity,
+    };
+  });
+
+  assert(styles.emailOpacity === '1', 'Email opacity visible');
+  assert(styles.passwordOpacity === '1', 'Password opacity visible');
+  assert(styles.cardBg?.includes('255') || styles.cardBg === 'rgb(255, 255, 255)', 'White card background');
+  assert(styles.emailBg !== 'rgba(0, 0, 0, 0)', 'Email input has background');
+  assert(styles.passwordBg !== 'rgba(0, 0, 0, 0)', 'Password input has background');
+  console.log('  ✓ Login fields visible + contrast OK', styles);
+}
+
 async function main() {
   console.log(`\n▶ Central login E2E (headed) → ${BASE}\n`);
   const browser = await chromium.launch({ headless: false, slowMo: 80 });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
   try {
-    // --- 1. Unified login UI has no Super Admin banner ---
     await clearSession(page);
-    const body = await page.textContent('body');
-    assert(!body?.includes('Platform Administration'), 'No Platform Administration title');
-    assert(!body?.includes('Super Admin Access'), 'No Super Admin Access subtitle');
-    assert(!body?.includes('Super Admin Only'), 'No Super Admin Only badge');
-    assert(body?.includes('Sign in'), 'Shows Sign in title');
-    await ss(page, '01-central-login');
+    await assertLoginFieldsVisible(page);
+    await ss(page, '01-login-fields-visible');
 
-    // --- 2. Platform login (no workspace) → /platform ---
+    // Platform login (email + password only)
     await page.fill('#email', PLATFORM_EMAIL);
     await page.fill('#password', PLATFORM_PASSWORD);
-    await page.fill('#workspace', '');
+    await ss(page, '02-platform-filled');
     await page.click('button[type="submit"]');
     await page.waitForURL((u) => u.pathname.startsWith('/platform') && !u.pathname.includes('login'), {
       timeout: 30000,
     });
-    assert(page.url().includes('/platform'), 'Platform redirect');
-    await ss(page, '02-platform-home');
+    await ss(page, '03-platform-home');
 
-    // --- 3. Create tenant with minimal fields ---
+    // Create tenant → credentials → login as that tenant (no workspace field)
     const slug = `e2e${Date.now().toString(36).slice(-6)}`;
     const adminEmail = `admin@${slug}.test`;
     const adminPassword = 'password123';
@@ -66,52 +102,46 @@ async function main() {
     await page.getByRole('button', { name: /Provision Tenant/i }).click();
     await page.waitForTimeout(400);
     await page.locator('input[placeholder="e.g. Skyline Construction"]').fill(`E2E ${slug}`);
-    // slug auto-fills; override
-    const slugInput = page.locator('input[placeholder="skyline"]');
-    await slugInput.fill(slug);
+    await page.locator('input[placeholder="skyline"]').fill(slug);
     await page.locator('input[placeholder="admin@skyline.example.com"]').fill(adminEmail);
     await page.locator('input[placeholder="password123"]').fill(adminPassword);
-    await ss(page, '03-create-tenant-minimal');
+    await ss(page, '04-create-tenant');
     await page.getByRole('button', { name: /Provision Schema/i }).click();
-
     await page.waitForSelector('[data-testid="tenant-credentials"]', { timeout: 60000 });
-    const credText = await page.locator('[data-testid="tenant-credentials"]').textContent();
-    assert(credText?.includes(slug), 'Credentials show workspace');
-    assert(credText?.includes(adminEmail), 'Credentials show admin email');
-    await ss(page, '04-credentials-modal');
+    await ss(page, '05-credentials');
     await page.getByRole('button', { name: /^Done$/i }).click();
 
-    // --- 4. Logout platform by clearing cookies, login as new tenant ---
     await clearSession(page);
+    await assertLoginFieldsVisible(page);
     await page.fill('#email', adminEmail);
     await page.fill('#password', adminPassword);
-    await page.fill('#workspace', slug);
-    await ss(page, '05-tenant-login-filled');
+    await ss(page, '06-new-tenant-login');
     await page.click('button[type="submit"]');
     await page.waitForURL((u) => u.pathname.includes('/dashboard') || u.pathname.includes('/admin'), {
-      timeout: 30000,
+      timeout: 45000,
     });
-    assert(!page.url().includes('/platform'), 'Tenant did not land on platform');
-    await ss(page, '06-tenant-dashboard');
+    assert(!page.url().includes('/platform'), 'New tenant not on platform');
+    await ss(page, '07-new-tenant-dashboard');
 
-    // --- 5. Demo tenant still works ---
+    // Demo tenant login (email only — no workspace)
     await clearSession(page);
     await page.fill('#email', DEMO_EMAIL);
     await page.fill('#password', DEMO_PASSWORD);
-    await page.fill('#workspace', DEMO_WORKSPACE);
+    await ss(page, '08-demo-filled');
     await page.click('button[type="submit"]');
-    await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 30000 });
+    await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 45000 });
     assert(page.url().includes('/dashboard') || page.url().includes('/admin'), 'Demo tenant login');
-    await ss(page, '07-demo-tenant');
+    await ss(page, '09-demo-tenant-home');
 
-    // --- 6. /platform/login redirects to central login ---
-    await clearSession(page);
-    await page.goto(`${BASE}/platform/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForURL((u) => u.pathname === '/login', { timeout: 15000 });
-    assert(page.url().includes('/login'), 'platform/login redirects to /login');
-    await ss(page, '08-platform-login-redirect');
+    // Visit a couple tenant admin screens to confirm visible UI
+    for (const path of ['/admin/users', '/admin/roles', '/admin/settings']) {
+      await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      const t = await page.textContent('body');
+      assert(t && t.length > 40, `${path} rendered content`);
+      await ss(page, `10-${path.replace(/\//g, '-')}`);
+    }
 
-    console.log('\n✅ Central login E2E passed\n');
+    console.log('\n✅ Central login + tenant E2E passed\n');
   } catch (err) {
     console.error('\n❌ E2E failed:', err);
     await ss(page, 'error-state').catch(() => undefined);

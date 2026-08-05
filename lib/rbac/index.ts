@@ -1,5 +1,5 @@
 export {
-  PERMISSIONS,
+  MODULES,
   hasPermission,
   hasAnyPermission,
 } from '@/lib/rbac/permissions';
