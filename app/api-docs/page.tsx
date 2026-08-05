@@ -32,7 +32,7 @@ function matchesFilter(tagText: string, filter: DocsFilter) {
  * Professional API documentation shell around OpenAPI (/openapi.json).
  */
 export default function ApiDocsPage() {
-  const [filter, setFilter] = useState<DocsFilter>('all');
+  const [filter, setFilter] = useState<DocsFilter>('Platform');
   const [ready, setReady] = useState(false);
   const uiReady = useRef(false);
 
@@ -180,6 +180,52 @@ export default function ApiDocsPage() {
             <pre className="docs-code">{authSnippet}</pre>
           </aside>
         </section>
+
+        <div className="docs-section-title">Platform Tenants · core APIs</div>
+        <div className="docs-featured">
+          <div className="docs-featured-card">
+            <div>
+              <span className="method get">GET</span>
+              <span className="path">/api/v1/platform/tenants</span>
+            </div>
+            <p>List all tenants for the platform console. Requires platform JWT.</p>
+          </div>
+          <div className="docs-featured-card">
+            <div>
+              <span className="method post">POST</span>
+              <span className="path">/api/v1/platform/tenants</span>
+            </div>
+            <p>Create + provision schema, seed admin, return credentials, send Brevo invite.</p>
+          </div>
+          <div className="docs-featured-card">
+            <div>
+              <span className="method get">GET</span>
+              <span className="path">/api/v1/platform/tenants/{'{id}'}</span>
+            </div>
+            <p>Get one tenant with subscription and usage limits.</p>
+          </div>
+          <div className="docs-featured-card">
+            <div>
+              <span className="method patch">PATCH</span>
+              <span className="path">/api/v1/platform/tenants/{'{id}'}</span>
+            </div>
+            <p>Update company/contact/admin profile fields on the control-plane row.</p>
+          </div>
+          <div className="docs-featured-card">
+            <div>
+              <span className="method post">POST</span>
+              <span className="path">/api/v1/platform/tenants/{'{id}'}</span>
+            </div>
+            <p>Retry provisioning when tenant is not yet active.</p>
+          </div>
+          <div className="docs-featured-card">
+            <div>
+              <span className="method post">POST</span>
+              <span className="path">/api/v1/platform/tenants/{'{id}'}/suspend</span>
+            </div>
+            <p>Suspend or resume tenant (`action`: suspend | resume).</p>
+          </div>
+        </div>
 
         <div className="docs-toolbar">
           <div className="docs-filters" role="tablist" aria-label="API groups">
