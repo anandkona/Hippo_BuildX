@@ -5,12 +5,15 @@ import { usePathname } from "next/navigation";
 import TenantSidebar from "./TenantSidebar";
 import { applyTheme } from "@/components/theme/theme";
 
-const FULLSCREEN_ROUTES = ["/login", "/platform/login"];
+const FULLSCREEN_ROUTES = ["/login", "/platform/login", "/api-docs"];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPlatform = pathname.startsWith("/platform");
-  const isFullscreen = FULLSCREEN_ROUTES.includes(pathname) || isPlatform;
+  const isApiDocs = pathname === "/api-docs" || pathname.startsWith("/api-docs/");
+  const isFullscreen =
+    FULLSCREEN_ROUTES.includes(pathname) || isPlatform || isApiDocs;
+
 
   useEffect(() => {
     if (!isFullscreen) {
