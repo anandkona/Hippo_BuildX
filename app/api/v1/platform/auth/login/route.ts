@@ -36,11 +36,12 @@ export async function POST(req: Request) {
     }
 
     // 3. Issue Access Token (JWT)
+    const roles = [user.role || 'platform_admin', 'super_admin'];
     const accessToken = await signAccessToken({
       userId: user.id,
-      tenantId: 'PLATFORM', // Platform doesn't have a specific tenant
-      schemaName: 'public', // Platform queries hit the control-plane
-      roles: ['super_admin'],
+      tenantId: 'PLATFORM',
+      schemaName: 'public',
+      roles,
       isPlatformAdmin: true,
     });
 
@@ -48,7 +49,12 @@ export async function POST(req: Request) {
     await db.update(platformUsers).set({ lastLoginAt: new Date() }).where(eq(platformUsers.id, user.id));
 
     // 5. Set HttpOnly Cookie
-    const response = NextResponse.json({ message: 'Login successful' });
+    const response = NextResponse.json({
+      message: 'Login successful',
+      scope: 'platform',
+      roles,
+      redirectTo: '/platform',
+    });
     
     response.cookies.set('access_token', accessToken, {
       httpOnly: true,

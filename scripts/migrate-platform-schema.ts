@@ -20,6 +20,28 @@ async function main() {
     ADD COLUMN IF NOT EXISTS usage jsonb DEFAULT '{}'::jsonb
   `;
 
+  // Professional company / contact profile for tenant provisioning
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS legal_name varchar(255)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS industry varchar(100) DEFAULT 'Construction'`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS company_size varchar(50)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS gstin varchar(20)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS pan varchar(20)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS cin varchar(30)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS website varchar(255)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS address_line1 varchar(255)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS address_line2 varchar(255)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS city varchar(100)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS state varchar(100)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS pincode varchar(20)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS country varchar(100) DEFAULT 'India'`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS contact_name varchar(255)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS contact_email varchar(255)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS contact_phone varchar(30)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS contact_designation varchar(100)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_email varchar(255)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS admin_name varchar(255)`;
+  await sql`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS admin_email varchar(255)`;
+
   await sql`
     ALTER TABLE plans
     ADD COLUMN IF NOT EXISTS max_storage_gb integer NOT NULL DEFAULT 5

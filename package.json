@@ -15,7 +15,8 @@
     "test:platform:visual": "tsx scripts/platform-visual.ts",
     "test:platform:e2e": "tsx scripts/platform-visual.ts",
     "test:platform:baselines": "tsx scripts/crop-mockup-baselines.ts",
-    "screenshots:platform": "tsx scripts/platform-screenshots.ts"
+    "screenshots:platform": "tsx scripts/platform-screenshots.ts",
+    "test:e2e:login": "tsx scripts/e2e-central-login.ts"
   },
   "dependencies": {
     "@ant-design/cssinjs": "^2.1.2",

@@ -1,47 +1,60 @@
 "use client";
 
-import React, { useState, Suspense, useEffect } from "react";
-import { Card, Form, Input, Button, Typography, Space, message, Spin } from "antd";
-import { UserOutlined, LockOutlined, ApartmentOutlined } from "@ant-design/icons";
+import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
-const { Title, Text } = Typography;
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
 function LoginForm() {
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("from") || "/dashboard";
-  const tenantSlug = searchParams.get("tenantSlug") || "";
-  const [form] = Form.useForm();
+  const from = searchParams.get("from") || "";
+  const presetWorkspace = searchParams.get("workspace") || searchParams.get("tenantSlug") || "";
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [workspace, setWorkspace] = useState(presetWorkspace);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    form.resetFields();
-    if (tenantSlug) {
-      form.setFieldsValue({ tenantSlug });
-    }
-  }, [form, tenantSlug]);
+    setWorkspace(presetWorkspace);
+  }, [presetWorkspace]);
 
-  const onFinish = async (values: { tenantSlug: string; email: string; password: string }) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
+    setError("");
     try {
-      const res = await fetch("/api/v1/auth/login", {
+      const res = await fetch("/api/v1/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          email,
+          password,
+          workspace: workspace.trim() || undefined,
+        }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
-        message.error(data.error || "Login failed");
+        setError(data.error || "Login failed");
         return;
       }
 
-      message.success("Login successful!");
-      router.push(redirectTo);
+      const target =
+        from && !from.startsWith("/login") && !(data.scope === "platform" && from.startsWith("/admin"))
+          ? from
+          : data.redirectTo || (data.scope === "platform" ? "/platform" : "/dashboard");
+
+      // Prevent tenant users landing on platform routes and vice versa
+      if (data.scope === "platform" && target.startsWith("/admin")) {
+        router.push("/platform");
+      } else if (data.scope === "tenant" && target.startsWith("/platform")) {
+        router.push("/dashboard");
+      } else {
+        router.push(target);
+      }
     } catch {
-      message.error("Something went wrong");
+      setError("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -49,80 +62,101 @@ function LoginForm() {
 
   return (
     <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      }}
+      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+      style={{ background: "var(--ui-sidebar)" }}
     >
-      <Card
-        style={{ width: 420, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}
-        styles={{ body: { padding: "40px 32px" } }}
+      <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full opacity-30 blur-3xl" style={{ background: "var(--ui-primary)" }} />
+      <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full opacity-20 blur-3xl" style={{ background: "#ef4444" }} />
+
+      <div
+        className="w-full max-w-md rounded-xl shadow-2xl p-8 relative z-10"
+        style={{ background: "var(--ui-surface)", border: "1px solid var(--ui-border)" }}
+        data-testid="central-login"
       >
-        <Space orientation="vertical" size={24} style={{ width: "100%" }}>
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontFamily: '"Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", Arial, sans-serif',
-                fontStyle: "italic",
-                fontWeight: 900,
-                letterSpacing: "-1px",
-                marginBottom: 8,
-              }}
-            >
-              <span style={{ color: "#1890ff", fontSize: 28 }}>Build</span>
-              <span style={{ color: "#ff4d4f", fontSize: 36 }}>X</span>
-            </div>
-            <Title level={4} style={{ margin: 0 }}>Tenant Login</Title>
-            <Text type="secondary">Sign in to your workspace</Text>
+        <div className="text-center mb-8">
+          <div
+            className="inline-flex items-baseline gap-1 font-black italic tracking-tighter mb-3"
+            style={{ fontFamily: '"Trebuchet MS", sans-serif' }}
+          >
+            <span className="text-3xl" style={{ color: "var(--ui-primary)" }}>Hippo</span>
+            <span className="text-3xl text-red-500">build</span>
+            <span className="text-4xl text-red-500">X</span>
+          </div>
+          <h1 className="text-xl font-bold" style={{ color: "var(--ui-text)" }}>Sign in</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--ui-text-muted)" }}>
+            Use your work email. Add a workspace for tenant accounts.
+          </p>
+        </div>
+
+        <form onSubmit={onSubmit} className="flex flex-col gap-4" autoComplete="off">
+          <div>
+            <label htmlFor="email" className="block text-sm font-semibold mb-1.5">Email</label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              className="w-full p-2.5 border rounded-lg outline-none"
+              style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+            />
           </div>
 
-          <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off" size="large">
-            <Form.Item
-              name="tenantSlug"
-              label="Workspace"
-              rules={[{ required: true, message: "Enter your workspace slug" }]}
-            >
-              <Input prefix={<ApartmentOutlined />} placeholder="Enter workspace" />
-            </Form.Item>
+          <div>
+            <label htmlFor="password" className="block text-sm font-semibold mb-1.5">Password</label>
+            <input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              className="w-full p-2.5 border rounded-lg outline-none"
+              style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+            />
+          </div>
 
-            <Form.Item
-              name="email"
-              label="Email"
-              rules={[
-                { required: true, message: "Enter your email" },
-                { type: "email", message: "Invalid email" },
-              ]}
-            >
-              <Input prefix={<UserOutlined />} placeholder="Enter email" />
-            </Form.Item>
+          <div>
+            <label htmlFor="workspace" className="block text-sm font-semibold mb-1.5">
+              Workspace <span className="font-normal" style={{ color: "var(--ui-text-muted)" }}>(optional)</span>
+            </label>
+            <input
+              id="workspace"
+              value={workspace}
+              onChange={(e) => setWorkspace(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              placeholder="e.g. demo — leave blank for platform staff"
+              className="w-full p-2.5 border rounded-lg outline-none font-mono text-sm"
+              style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+            />
+          </div>
 
-            <Form.Item
-              name="password"
-              label="Password"
-              rules={[{ required: true, message: "Enter your password" }]}
-            >
-              <Input.Password prefix={<LockOutlined />} placeholder="Enter password" />
-            </Form.Item>
+          {error && (
+            <div className="text-sm px-3 py-2 rounded-md" style={{ background: "#FEE2E2", color: "var(--ui-danger)" }}>
+              {error}
+            </div>
+          )}
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" block loading={loading}>
-                Sign In
-              </Button>
-            </Form.Item>
-          </Form>
-        </Space>
-      </Card>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 rounded-lg font-semibold shadow-md disabled:opacity-60"
+            style={{ background: "var(--ui-primary)", color: "var(--ui-primary-foreground)" }}
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}><Spin size="large" /></div>}>
-      <LoginForm />
-    </Suspense>
+    <ThemeProvider defaultTheme="corporateBlue">
+      <Suspense fallback={<div className="min-h-screen" style={{ background: "var(--ui-sidebar)" }} />}>
+        <LoginForm />
+      </Suspense>
+    </ThemeProvider>
   );
 }

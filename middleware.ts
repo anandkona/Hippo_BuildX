@@ -7,6 +7,7 @@ const PUBLIC_API_ROUTES = [
   '/api/v1/health',
   '/api/v1/health/ready',
   '/api/v1/auth/login',
+  '/api/v1/auth/session',
   '/api/v1/auth/refresh',
   '/api/v1/platform/auth/login',
 ];
@@ -68,7 +69,7 @@ export async function middleware(request: NextRequest) {
   // Check for access_token cookie on page routes
   const token = request.cookies.get('access_token')?.value;
   const isPlatformPage = pathname.startsWith('/platform');
-  const loginPath = isPlatformPage ? '/platform/login' : '/login';
+  const loginPath = '/login';
 
   if (!token) {
     const loginUrl = new URL(loginPath, request.url);
@@ -85,8 +86,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPlatformPage && !payload.isPlatformAdmin) {
-    const loginUrl = new URL('/platform/login', request.url);
+    const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Platform staff hitting tenant app root → send to platform home
+  if (payload.isPlatformAdmin && (pathname === '/dashboard' || pathname.startsWith('/admin'))) {
+    return NextResponse.redirect(new URL('/platform', request.url));
   }
 
   return NextResponse.next();

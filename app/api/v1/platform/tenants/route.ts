@@ -5,6 +5,38 @@ import { provisionTenantQueue } from '@/lib/queue';
 import { extractContextFromHeaders } from '@/lib/tenant-context';
 import { eq, desc } from 'drizzle-orm';
 import { logPlatformAudit, getClientIp } from '@/lib/platform-audit';
+import { DEFAULT_TENANT_ADMIN_PASSWORD, provisionTenant } from '@/lib/tenants/provision';
+
+function clean(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+}
+
+function pickTenantProfile(body: Record<string, unknown>) {
+  return {
+    legalName: clean(body.legalName),
+    industry: clean(body.industry) || 'Construction',
+    companySize: clean(body.companySize),
+    gstin: clean(body.gstin)?.toUpperCase(),
+    pan: clean(body.pan)?.toUpperCase(),
+    cin: clean(body.cin)?.toUpperCase(),
+    website: clean(body.website),
+    addressLine1: clean(body.addressLine1),
+    addressLine2: clean(body.addressLine2),
+    city: clean(body.city),
+    state: clean(body.state),
+    pincode: clean(body.pincode),
+    country: clean(body.country) || 'India',
+    contactName: clean(body.contactName),
+    contactEmail: clean(body.contactEmail)?.toLowerCase(),
+    contactPhone: clean(body.contactPhone),
+    contactDesignation: clean(body.contactDesignation),
+    billingEmail: clean(body.billingEmail)?.toLowerCase(),
+    adminName: clean(body.adminName) || clean(body.contactName),
+    adminEmail: clean(body.adminEmail)?.toLowerCase() || clean(body.contactEmail)?.toLowerCase(),
+  };
+}
 
 export async function POST(req: Request) {
   try {
@@ -15,14 +47,32 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { name, slug, planId } = body;
+    const name = clean(body.name);
+    const slug = clean(body.slug)?.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const planId = clean(body.planId);
+    const adminPassword = clean(body.adminPassword) || DEFAULT_TENANT_ADMIN_PASSWORD;
+    const profile = pickTenantProfile(body);
 
     if (!name || !slug) {
-      return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Company name and subdomain are required' }, { status: 400 });
+    }
+
+    // Ensure we always have an admin email for seeded login
+    if (!profile.adminEmail) {
+      profile.adminEmail = `admin@${slug}.local`;
+    }
+    if (!profile.adminName) {
+      profile.adminName = profile.contactName || `${name} Admin`;
+    }
+
+    if (profile.gstin && !/^[0-9A-Z]{15}$/.test(profile.gstin)) {
+      return NextResponse.json({ error: 'GSTIN must be 15 characters' }, { status: 400 });
+    }
+    if (profile.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(profile.pan)) {
+      return NextResponse.json({ error: 'PAN format looks invalid' }, { status: 400 });
     }
 
     const schemaName = `tenant_${slug.replace(/[^a-z0-9_]/g, '')}`;
-
     const db = getDb();
 
     const [newTenant] = await db
@@ -33,6 +83,7 @@ export async function POST(req: Request) {
         schemaName,
         status: 'provisioning',
         usage: { users: 0, projects: 0, storageGb: 0, apiCalls: 0 },
+        ...profile,
       })
       .returning();
 
@@ -44,13 +95,51 @@ export async function POST(req: Request) {
       });
     }
 
+    const jobPayload = {
+      tenantId: newTenant.id,
+      schemaName,
+      name,
+      adminEmail: profile.adminEmail,
+      adminName: profile.adminName,
+      adminPassword,
+    };
+
+    let provisionMode: 'queue' | 'sync' = 'queue';
     let queueError: string | null = null;
+    let credentials = {
+      workspace: slug,
+      adminEmail: profile.adminEmail!,
+      adminPassword,
+    };
+
     try {
-      await provisionTenantQueue.add('provision', { tenantId: newTenant.id, schemaName, name });
+      await provisionTenantQueue.add('provision', jobPayload);
     } catch (err: any) {
-      // Redis/worker may be unavailable locally — tenant row still created for retry.
-      console.error('Failed to enqueue provision job:', err);
+      console.error('Failed to enqueue provision job, running sync fallback:', err);
       queueError = err?.message || 'Queue unavailable';
+      provisionMode = 'sync';
+      const result = await provisionTenant(jobPayload);
+      credentials = {
+        workspace: slug,
+        adminEmail: result.adminEmail,
+        adminPassword: result.adminPassword,
+      };
+    }
+
+    // If queued successfully but worker may not be running in local dev,
+    // also run sync when SYNC_PROVISION=1 or always for reliability in create response.
+    if (provisionMode === 'queue' && process.env.SYNC_PROVISION !== '0') {
+      try {
+        const result = await provisionTenant(jobPayload);
+        credentials = {
+          workspace: slug,
+          adminEmail: result.adminEmail,
+          adminPassword: result.adminPassword,
+        };
+        provisionMode = 'sync';
+      } catch (syncErr) {
+        console.error('Sync provision after enqueue failed (worker may still process):', syncErr);
+      }
     }
 
     await logPlatformAudit({
@@ -59,20 +148,25 @@ export async function POST(req: Request) {
       resource: 'tenant',
       resourceId: newTenant.id,
       details: queueError
-        ? `Created tenant ${name} (provision job deferred: ${queueError})`
-        : `Created tenant ${name}`,
+        ? `Created tenant ${name} via sync fallback (${queueError})`
+        : `Created tenant ${name} (${provisionMode})`,
       ipAddress: getClientIp(req),
     });
 
+    const [fresh] = await db.select().from(tenants).where(eq(tenants.id, newTenant.id));
+
     return NextResponse.json(
       {
-        message: queueError
-          ? 'Tenant created; provisioning queued when worker/redis is available'
-          : 'Tenant provisioning started',
-        tenant: newTenant,
+        message:
+          fresh?.status === 'active'
+            ? 'Tenant provisioned and ready for login'
+            : 'Tenant provisioning started',
+        tenant: fresh || newTenant,
+        credentials,
+        provisionMode,
         queueWarning: queueError,
       },
-      { status: 202 }
+      { status: fresh?.status === 'active' ? 201 : 202 }
     );
   } catch (error: any) {
     console.error('Failed to provision tenant:', error);

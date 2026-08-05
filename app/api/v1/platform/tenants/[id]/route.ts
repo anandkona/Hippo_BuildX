@@ -79,11 +79,47 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     const db = getDb();
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
-    if (body.name !== undefined) updates.name = body.name;
+    const stringFields = [
+      'name',
+      'legalName',
+      'industry',
+      'companySize',
+      'gstin',
+      'pan',
+      'cin',
+      'website',
+      'addressLine1',
+      'addressLine2',
+      'city',
+      'state',
+      'pincode',
+      'country',
+      'contactName',
+      'contactEmail',
+      'contactPhone',
+      'contactDesignation',
+      'billingEmail',
+      'adminName',
+      'adminEmail',
+      'status',
+    ] as const;
+
+    for (const key of stringFields) {
+      if (body[key] !== undefined) {
+        const value = typeof body[key] === 'string' ? body[key].trim() : body[key];
+        updates[key] = value === '' ? null : value;
+      }
+    }
+    if (typeof updates.gstin === 'string') updates.gstin = updates.gstin.toUpperCase();
+    if (typeof updates.pan === 'string') updates.pan = updates.pan.toUpperCase();
+    if (typeof updates.cin === 'string') updates.cin = updates.cin.toUpperCase();
+    if (typeof updates.contactEmail === 'string') updates.contactEmail = updates.contactEmail.toLowerCase();
+    if (typeof updates.billingEmail === 'string') updates.billingEmail = updates.billingEmail.toLowerCase();
+    if (typeof updates.adminEmail === 'string') updates.adminEmail = updates.adminEmail.toLowerCase();
+
     if (body.branding !== undefined) updates.branding = body.branding;
     if (body.featureFlags !== undefined) updates.featureFlags = body.featureFlags;
     if (body.usage !== undefined) updates.usage = body.usage;
-    if (body.status !== undefined) updates.status = body.status;
 
     const [updated] = await db.update(tenants).set(updates).where(eq(tenants.id, id)).returning();
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
