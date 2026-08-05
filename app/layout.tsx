@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Admin Panel",
-  description: "Premium SaaS Admin Dashboard",
+  title: "BuildX Construction ERP",
+  description: "Multi-Tenant Construction ERP Platform",
 };
 
 export default function RootLayout({

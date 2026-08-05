@@ -8,6 +8,12 @@ export const tenants = pgTable('tenants', {
   status: varchar('status', { length: 50 }).notNull().default('provisioning'),
   branding: jsonb('branding'),
   featureFlags: jsonb('feature_flags'),
+  usage: jsonb('usage').$type<{
+    users?: number;
+    projects?: number;
+    storageGb?: number;
+    apiCalls?: number;
+  }>().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -34,11 +40,20 @@ export const TENANT_STATUS = Object.freeze({
   SUSPENDED: 'suspended',
 });
 
+export const PLATFORM_USER_ROLES = Object.freeze({
+  PLATFORM_OWNER: 'platform_owner',
+  PLATFORM_ADMIN: 'platform_admin',
+  SUPPORT_MANAGER: 'support_manager',
+  BILLING_MANAGER: 'billing_manager',
+  READ_ONLY: 'read_only',
+});
+
 export const platformUsers = pgTable('platform_users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   name: varchar('name', { length: 255 }).notNull(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  role: varchar('role', { length: 50 }).notNull().default('platform_admin'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
@@ -66,8 +81,12 @@ export const plans = pgTable('plans', {
   billingCycle: varchar('billing_cycle', { length: 20 }).notNull().default('monthly'),
   maxUsers: integer('max_users').notNull().default(5),
   maxProjects: integer('max_projects').notNull().default(1),
+  maxStorageGb: integer('max_storage_gb').notNull().default(5),
+  maxApiCalls: integer('max_api_calls').notNull().default(10000),
+  supportLevel: varchar('support_level', { length: 50 }).notNull().default('Email'),
   featureFlags: jsonb('feature_flags').notNull().default({}),
   isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -92,4 +111,37 @@ export const SUBSCRIPTION_STATUS = Object.freeze({
   PAST_DUE: 'past_due',
   CANCELLED: 'cancelled',
   EXPIRED: 'expired',
+});
+
+/** Platform-level feature flags / kill-switches */
+export const featureFlags = pgTable('feature_flags', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: varchar('key', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  enabled: boolean('enabled').notNull().default(true),
+  scope: varchar('scope', { length: 20 }).notNull().default('global'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Platform system settings (key/value jsonb sections) */
+export const platformSettings = pgTable('platform_settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: varchar('key', { length: 100 }).notNull().unique(),
+  value: jsonb('value').notNull().default({}),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Platform-wide audit log */
+export const platformAuditLogs = pgTable('platform_audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  actorUserId: uuid('actor_user_id').references(() => platformUsers.id),
+  actorEmail: varchar('actor_email', { length: 255 }),
+  action: varchar('action', { length: 100 }).notNull(),
+  resource: varchar('resource', { length: 100 }),
+  resourceId: varchar('resource_id', { length: 100 }),
+  details: text('details'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

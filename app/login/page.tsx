@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useEffect } from "react";
 import { Card, Form, Input, Button, Typography, Space, message, Spin } from "antd";
 import { UserOutlined, LockOutlined, ApartmentOutlined } from "@ant-design/icons";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -13,6 +13,14 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("from") || "/dashboard";
   const tenantSlug = searchParams.get("tenantSlug") || "";
+  const [form] = Form.useForm();
+
+  useEffect(() => {
+    form.resetFields();
+    if (tenantSlug) {
+      form.setFieldsValue({ tenantSlug });
+    }
+  }, [form, tenantSlug]);
 
   const onFinish = async (values: { tenantSlug: string; email: string; password: string }) => {
     setLoading(true);
@@ -53,7 +61,7 @@ function LoginForm() {
         style={{ width: 420, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}
         styles={{ body: { padding: "40px 32px" } }}
       >
-        <Space direction="vertical" size={24} style={{ width: "100%" }}>
+        <Space orientation="vertical" size={24} style={{ width: "100%" }}>
           <div style={{ textAlign: "center" }}>
             <div
               style={{
@@ -71,7 +79,7 @@ function LoginForm() {
             <Text type="secondary">Sign in to your workspace</Text>
           </div>
 
-          <Form layout="vertical" onFinish={onFinish} autoComplete="off" size="large" initialValues={{ tenantSlug }}>
+          <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off" size="large">
             <Form.Item
               name="tenantSlug"
               label="Workspace"

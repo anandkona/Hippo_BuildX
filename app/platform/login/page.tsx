@@ -1,36 +1,34 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, Form, Input, Button, Typography, Space, message, Tag } from "antd";
-import { UserOutlined, LockOutlined, CloudServerOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
-const { Title, Text } = Typography;
-
-export default function PlatformLoginPage() {
+function LoginForm() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const router = useRouter();
 
-  const onFinish = async (values: { email: string; password: string }) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/v1/platform/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ email, password }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
-        message.error(data.error || "Login failed");
+        setError(data.error || "Login failed");
         return;
       }
-
-      message.success("Login successful!");
       router.push("/platform");
     } catch {
-      message.error("Something went wrong");
+      setError("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -38,82 +36,96 @@ export default function PlatformLoginPage() {
 
   return (
     <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(135deg, #0c1426 0%, #1a365d 50%, #2d3748 100%)",
-      }}
+      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+      style={{ background: "var(--ui-sidebar)" }}
     >
-      <Card
-        style={{ width: 420, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}
-        styles={{ body: { padding: "40px 32px" } }}
+      <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full opacity-30 blur-3xl" style={{ background: "var(--ui-primary)" }} />
+      <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full opacity-20 blur-3xl" style={{ background: "#ef4444" }} />
+
+      <div
+        className="w-full max-w-md rounded-xl shadow-2xl p-8 relative z-10"
+        style={{ background: "var(--ui-surface)", border: "1px solid var(--ui-border)" }}
       >
-        <Space direction="vertical" size={24} style={{ width: "100%" }}>
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 16,
-                background: "linear-gradient(135deg, #1890ff, #722ed1)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 16px",
-              }}
-            >
-              <CloudServerOutlined style={{ color: "#fff", fontSize: 28 }} />
-            </div>
-            <div
-              style={{
-                fontFamily: '"Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", Arial, sans-serif',
-                fontStyle: "italic",
-                fontWeight: 900,
-                letterSpacing: "-1px",
-                marginBottom: 8,
-              }}
-            >
-              <span style={{ color: "#1890ff", fontSize: 28 }}>Build</span>
-              <span style={{ color: "#ff4d4f", fontSize: 36 }}>X</span>
-            </div>
-            <Title level={4} style={{ margin: 0 }}>Platform Administration</Title>
-            <Text type="secondary">Super Admin Access</Text>
+        <div className="text-center mb-8">
+          <div
+            className="inline-flex items-baseline gap-1 font-black italic tracking-tighter mb-3"
+            style={{ fontFamily: '"Trebuchet MS", sans-serif' }}
+          >
+            <span className="text-3xl" style={{ color: "var(--ui-primary)" }}>
+              Hippo
+            </span>
+            <span className="text-3xl text-red-500">build</span>
+            <span className="text-4xl text-red-500">X</span>
+          </div>
+          <h1 className="text-xl font-bold" style={{ color: "var(--ui-text)" }}>
+            Platform Administration
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--ui-text-muted)" }}>
+            Super Admin Access
+          </p>
+        </div>
+
+        <form onSubmit={onSubmit} className="flex flex-col gap-4" autoComplete="off">
+          <div>
+            <label htmlFor="platform-email" className="block text-sm font-semibold mb-1.5">Email</label>
+            <input
+              id="platform-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="super@buildx.com"
+              className="w-full p-2.5 border rounded-lg outline-none transition-all"
+              style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+            />
+          </div>
+          <div>
+            <label htmlFor="platform-password" className="block text-sm font-semibold mb-1.5">Password</label>
+            <input
+              id="platform-password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              className="w-full p-2.5 border rounded-lg outline-none transition-all"
+              style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+            />
           </div>
 
-          <Form layout="vertical" onFinish={onFinish} autoComplete="off" size="large">
-            <Form.Item
-              name="email"
-              label="Email"
-              rules={[
-                { required: true, message: "Enter your email" },
-                { type: "email", message: "Invalid email" },
-              ]}
-            >
-              <Input prefix={<UserOutlined />} placeholder="super@buildx.com" />
-            </Form.Item>
+          {error && (
+            <div className="text-sm px-3 py-2 rounded-md" style={{ background: "#FEE2E2", color: "var(--ui-danger)" }}>
+              {error}
+            </div>
+          )}
 
-            <Form.Item
-              name="password"
-              label="Password"
-              rules={[{ required: true, message: "Enter your password" }]}
-            >
-              <Input.Password prefix={<LockOutlined />} placeholder="Enter password" />
-            </Form.Item>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 rounded-lg font-semibold shadow-md transition-opacity disabled:opacity-60"
+            style={{ background: "var(--ui-primary)", color: "var(--ui-primary-foreground)" }}
+          >
+            {loading ? "Signing in..." : "Sign In to Platform"}
+          </button>
+        </form>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" block loading={loading}>
-                Sign In to Platform
-              </Button>
-            </Form.Item>
-          </Form>
-
-          <div style={{ textAlign: "center" }}>
-            <Tag color="warning">Super Admin Only</Tag>
-          </div>
-        </Space>
-      </Card>
+        <div className="text-center mt-6">
+          <span
+            className="inline-flex text-xs font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: "#FEF3C7", color: "#B45309" }}
+          >
+            Super Admin Only
+          </span>
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function PlatformLoginPage() {
+  return (
+    <ThemeProvider defaultTheme="corporateBlue">
+      <LoginForm />
+    </ThemeProvider>
   );
 }

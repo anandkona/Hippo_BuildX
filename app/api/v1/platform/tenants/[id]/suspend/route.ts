@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db/client';
 import { tenants } from '@/lib/db/schema/control-plane';
 import { eq } from 'drizzle-orm';
 import { extractContextFromHeaders } from '@/lib/tenant-context';
+import { logPlatformAudit, getClientIp } from '@/lib/platform-audit';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -45,6 +46,15 @@ export async function POST(req: Request, { params }: RouteContext) {
       .set({ status: newStatus, updatedAt: new Date() })
       .where(eq(tenants.id, id))
       .returning();
+
+    await logPlatformAudit({
+      actorUserId: context.userId,
+      action: newStatus === 'suspended' ? 'Suspended Tenant' : 'Resumed Tenant',
+      resource: 'tenant',
+      resourceId: id,
+      details: `${newStatus === 'suspended' ? 'Suspended' : 'Resumed'} ${tenant.name}`,
+      ipAddress: getClientIp(req),
+    });
 
     return NextResponse.json({
       message: `Tenant ${newStatus === 'suspended' ? 'suspended' : 'resumed'} successfully`,

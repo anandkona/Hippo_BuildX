@@ -1,270 +1,149 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Table,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  Form,
-  Select,
-  message,
-  Card,
-  Spin,
-  Empty,
-  Typography,
-  Tooltip,
-} from "antd";
-import {
-  PlusOutlined,
-  ReloadOutlined,
-  LinkOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-} from "@ant-design/icons";
+import React, { useCallback, useEffect, useState } from "react";
+import { FiPlus, FiRefreshCw } from "react-icons/fi";
 
-const { Text } = Typography;
-const { Option } = Select;
-
-interface Subscription {
-  id: string;
-  tenantId: string;
-  planId: string;
-  status: string;
-  startsAt: string;
-  expiresAt: string | null;
-  createdAt: string;
-  tenantName: string;
-  tenantSlug: string;
-  planName: string;
-  planPrice: number;
-}
-
-interface Tenant {
-  id: string;
-  name: string;
-  slug: string;
-  status: string;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  displayName: string;
-  price: number;
-  isActive?: boolean;
+function formatINR(n: number) {
+  if (!n) return "Custom";
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 }
 
 export default function SubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<any>({ status: "active" });
+  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [form] = Form.useForm();
 
-  const fetchData = useCallback(async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [subRes, tenantRes, planRes] = await Promise.all([
+      const [s, t, p] = await Promise.all([
         fetch("/api/v1/platform/subscriptions"),
         fetch("/api/v1/platform/tenants"),
         fetch("/api/v1/platform/plans"),
       ]);
-
-      if (subRes.ok) {
-        const subData = await subRes.json();
-        setSubscriptions(subData.subscriptions ?? []);
-      }
-      if (tenantRes.ok) {
-        const tenantData = await tenantRes.json();
-        setTenants(tenantData.tenants ?? []);
-      }
-      if (planRes.ok) {
-        const planData = await planRes.json();
-        setPlans(planData.plans ?? []);
-      }
-    } catch {
-      message.error("Failed to load data");
+      if (s.ok) setSubscriptions((await s.json()).subscriptions ?? []);
+      if (t.ok) setTenants((await t.json()).tenants ?? []);
+      if (p.ok) setPlans(((await p.json()).plans ?? []).filter((x: any) => x.isActive !== false));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { load(); }, [load]);
 
-  const handleAssign = async () => {
+  const assign = async () => {
+    setSubmitting(true);
+    setError("");
     try {
-      const values = await form.validateFields();
-      setSubmitting(true);
-
       const res = await fetch("/api/v1/platform/subscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          tenantId: form.tenantId,
+          planId: form.planId,
+          status: form.status || "active",
+          expiresAt: form.expiresAt || undefined,
+        }),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to assign plan");
-      }
-
-      message.success("Plan assigned successfully");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
       setModalOpen(false);
-      form.resetFields();
-      fetchData();
-    } catch (error: any) {
-      message.error(error.message || "Failed to assign plan");
+      load();
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const columns = [
-    {
-      title: "Tenant",
-      key: "tenant",
-      render: (_: unknown, record: Subscription) => (
-        <Space>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: "#e6f7ff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <LinkOutlined style={{ color: "#1890ff" }} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 500 }}>{record.tenantName}</div>
-            <Text type="secondary" style={{ fontSize: 12 }}>{record.tenantSlug}</Text>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: "Plan",
-      key: "plan",
-      render: (_: unknown, record: Subscription) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{record.planName}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            ₹{record.planPrice?.toLocaleString()}/month
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string) => {
-        const config: Record<string, { color: string; icon: React.ReactNode }> = {
-          active: { color: "success", icon: <CheckCircleOutlined /> },
-          trial: { color: "processing", icon: <ClockCircleOutlined /> },
-          past_due: { color: "warning", icon: <ClockCircleOutlined /> },
-          cancelled: { color: "error", icon: <CheckCircleOutlined /> },
-        };
-        const c = config[status] || { color: "default", icon: null };
-        return <Tag icon={c.icon} color={c.color}>{status}</Tag>;
-      },
-    },
-    {
-      title: "Start Date",
-      dataIndex: "startsAt",
-      key: "startsAt",
-      render: (date: string) => new Date(date).toLocaleDateString(),
-    },
-    {
-      title: "Expires",
-      dataIndex: "expiresAt",
-      key: "expiresAt",
-      render: (date: string | null) => date ? new Date(date).toLocaleDateString() : "Never",
-    },
-  ];
-
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <Typography.Title level={4} style={{ margin: 0 }}>Subscriptions</Typography.Title>
-            <Text type="secondary">Manage tenant subscriptions and plan assignments</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-              Assign Plan
-            </Button>
-          </Space>
+    <div className="flex flex-col gap-6" data-testid="platform-subscriptions">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">Subscriptions & Billing</h1>
+          <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>Active subscriptions across all tenants</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={load} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }}><FiRefreshCw /> Refresh</button>
+          <button onClick={() => { setForm({ status: "active" }); setModalOpen(true); }} className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md" style={{ background: "var(--ui-primary)", color: "#fff" }}>
+            <FiPlus /> Assign Plan
+          </button>
         </div>
       </div>
 
-      <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-        <Spin spinning={loading}>
-          <Table
-            columns={columns}
-            dataSource={subscriptions}
-            rowKey="id"
-            pagination={{ pageSize: 10 }}
-            locale={{
-              emptyText: (
-                <Empty description="No subscriptions found">
-                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-                    Assign First Plan
-                  </Button>
-                </Empty>
-              ),
-            }}
-          />
-        </Spin>
-      </Card>
+      <div className="rounded-lg border shadow-sm overflow-hidden" style={{ background: "var(--ui-surface)", borderColor: "var(--ui-border)" }}>
+        <table className="w-full text-sm text-left">
+          <thead className="bg-gray-50/50 border-b" style={{ borderColor: "var(--ui-border)" }}>
+            <tr>
+              <th className="px-5 py-4 font-semibold">Tenant</th>
+              <th className="px-5 py-4 font-semibold">Plan</th>
+              <th className="px-5 py-4 font-semibold">Amount</th>
+              <th className="px-5 py-4 font-semibold">Billing Cycle</th>
+              <th className="px-5 py-4 font-semibold">Status</th>
+              <th className="px-5 py-4 font-semibold">Next Billing</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y" style={{ borderColor: "var(--ui-border)" }}>
+            {loading ? (
+              <tr><td colSpan={6} className="px-5 py-10 text-center" style={{ color: "var(--ui-text-muted)" }}>Loading...</td></tr>
+            ) : subscriptions.map((s) => (
+              <tr key={s.id} className="hover:bg-black/[0.02]">
+                <td className="px-5 py-4">
+                  <div className="font-medium">{s.tenantName}</div>
+                  <div className="text-xs" style={{ color: "var(--ui-text-muted)" }}>{s.tenantSlug}</div>
+                </td>
+                <td className="px-5 py-4"><span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">{s.planName}</span></td>
+                <td className="px-5 py-4">{formatINR(s.planPrice)}</td>
+                <td className="px-5 py-4 capitalize">{s.billingCycle || "monthly"}</td>
+                <td className="px-5 py-4">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.status === "active" ? "bg-green-100 text-green-700" : s.status === "past_due" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-700"}`}>{s.status}</span>
+                </td>
+                <td className="px-5 py-4" style={{ color: "var(--ui-text-muted)" }}>{s.expiresAt ? new Date(s.expiresAt).toLocaleDateString("en-IN") : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <Modal
-        title="Assign Plan to Tenant"
-        open={modalOpen}
-        onOk={handleAssign}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        width={480}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="tenantId"
-            label="Tenant"
-            rules={[{ required: true, message: "Please select a tenant" }]}
-          >
-            <Select placeholder="Select tenant" showSearch optionFilterProp="children">
-              {tenants.filter((t) => t.status === "active").map((tenant) => (
-                <Option key={tenant.id} value={tenant.id}>
-                  {tenant.name} ({tenant.slug})
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="planId"
-            label="Plan"
-            rules={[{ required: true, message: "Please select a plan" }]}
-          >
-            <Select placeholder="Select plan" showSearch optionFilterProp="children">
-              {plans.filter((p) => p.isActive).map((plan) => (
-                <Option key={plan.id} value={plan.id}>
-                  {plan.displayName} - ₹{plan.price.toLocaleString()}/month
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-xl border p-6 shadow-2xl" style={{ background: "var(--ui-surface)", borderColor: "var(--ui-border)" }}>
+            <h2 className="text-xl font-bold mb-4">Assign Plan</h2>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">Tenant</label>
+                <select className="w-full p-2.5 border rounded-lg" style={{ borderColor: "var(--ui-border)" }} value={form.tenantId || ""} onChange={(e) => setForm({ ...form, tenantId: e.target.value })}>
+                  <option value="">Select tenant</option>
+                  {tenants.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">Plan</label>
+                <select className="w-full p-2.5 border rounded-lg" style={{ borderColor: "var(--ui-border)" }} value={form.planId || ""} onChange={(e) => setForm({ ...form, planId: e.target.value })}>
+                  <option value="">Select plan</option>
+                  {plans.map((p) => <option key={p.id} value={p.id}>{p.displayName}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">Next Billing</label>
+                <input type="date" className="w-full p-2.5 border rounded-lg" style={{ borderColor: "var(--ui-border)" }} value={form.expiresAt || ""} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+              </div>
+              {error && <div className="text-sm" style={{ color: "var(--ui-danger)" }}>{error}</div>}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button className="px-4 py-2 rounded-lg hover:bg-gray-100" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button disabled={submitting || !form.tenantId || !form.planId} className="px-4 py-2 rounded-lg font-semibold" style={{ background: "var(--ui-primary)", color: "#fff" }} onClick={assign}>
+                {submitting ? "Saving..." : "Assign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

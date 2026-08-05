@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { ConfigProvider, theme } from "antd";
+import { ConfigProvider, App, theme } from "antd";
 
 type ThemeMode = "light" | "dark";
 
@@ -56,7 +56,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
           },
         }}
       >
-        {children}
+        <App>{children}</App>
       </ConfigProvider>
     </ThemeContext.Provider>
   );

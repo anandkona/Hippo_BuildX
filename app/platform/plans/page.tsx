@@ -1,40 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Table,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-  Switch,
-  message,
-  Card,
-  Spin,
-  Empty,
-  Typography,
-  Tooltip,
-  Popconfirm,
-  Row,
-  Col,
-  Divider,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ReloadOutlined,
-  CrownOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-} from "@ant-design/icons";
-
-const { Text } = Typography;
-const { Option } = Select;
+import React, { useCallback, useEffect, useState } from "react";
+import { FiCheck, FiEdit2, FiPlus, FiRefreshCw } from "react-icons/fi";
 
 interface Plan {
   id: string;
@@ -42,40 +9,38 @@ interface Plan {
   displayName: string;
   description: string;
   price: number;
-  currency: string;
   billingCycle: string;
   maxUsers: number;
   maxProjects: number;
-  featureFlags: Record<string, boolean>;
+  maxStorageGb: number;
+  maxApiCalls: number;
+  supportLevel: string;
   isActive: boolean;
-  createdAt: string;
 }
 
-const FEATURE_LABELS: Record<string, string> = {
-  crm: "CRM",
-  hrms: "HRMS",
-  inventory: "Inventory",
-  procurement: "Procurement",
-  accounting: "Accounting",
-};
+function formatINR(n: number) {
+  if (n === 0) return "Custom";
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+}
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [editing, setEditing] = useState<Plan | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [form] = Form.useForm();
+  const [error, setError] = useState("");
+  const [form, setForm] = useState<any>({});
 
   const fetchPlans = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await fetch("/api/v1/platform/plans");
-      if (!res.ok) throw new Error("Failed to fetch plans");
+      if (!res.ok) throw new Error("Failed to load plans");
       const data = await res.json();
-      setPlans(data.plans ?? []);
-    } catch {
-      message.error("Failed to load plans");
+      setPlans((data.plans ?? []).filter((p: Plan) => p.isActive !== false));
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -85,276 +50,182 @@ export default function PlansPage() {
     fetchPlans();
   }, [fetchPlans]);
 
-  const handleAdd = () => {
-    setEditingPlan(null);
-    form.resetFields();
-    form.setFieldsValue({
+  const openCreate = () => {
+    setEditing(null);
+    setForm({
+      name: "",
+      displayName: "",
+      description: "",
+      price: 999,
       billingCycle: "monthly",
-      maxUsers: 5,
-      maxProjects: 1,
-      featureFlags: { crm: true, hrms: true, inventory: true, procurement: false, accounting: false },
+      maxUsers: 10,
+      maxProjects: 5,
+      maxStorageGb: 5,
+      maxApiCalls: 10000,
+      supportLevel: "Email",
     });
     setModalOpen(true);
   };
 
-  const handleEdit = (plan: Plan) => {
-    setEditingPlan(plan);
-    form.setFieldsValue({
-      name: plan.name,
-      displayName: plan.displayName,
-      description: plan.description,
-      price: plan.price,
-      billingCycle: plan.billingCycle,
-      maxUsers: plan.maxUsers,
-      maxProjects: plan.maxProjects,
-      featureFlags: plan.featureFlags,
-    });
+  const openEdit = (plan: Plan) => {
+    setEditing(plan);
+    setForm({ ...plan });
     setModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const save = async () => {
+    setSubmitting(true);
+    setError("");
     try {
-      const res = await fetch(`/api/v1/platform/plans/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete plan");
-      message.success("Plan deactivated");
-      fetchPlans();
-    } catch {
-      message.error("Failed to delete plan");
-    }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      setSubmitting(true);
-
-      const url = editingPlan
-        ? `/api/v1/platform/plans/${editingPlan.id}`
-        : "/api/v1/platform/plans";
-      const method = editingPlan ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-
-      if (!res.ok) {
+      if (editing) {
+        const res = await fetch(`/api/v1/platform/plans/${editing.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
         const data = await res.json();
-        throw new Error(data.error || "Failed to save plan");
+        if (!res.ok) throw new Error(data.error || "Update failed");
+      } else {
+        const res = await fetch("/api/v1/platform/plans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Create failed");
       }
-
-      message.success(editingPlan ? "Plan updated" : "Plan created");
       setModalOpen(false);
       fetchPlans();
-    } catch (error: any) {
-      message.error(error.message || "Failed to save plan");
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const columns = [
-    {
-      title: "Plan",
-      key: "plan",
-      render: (_: unknown, record: Plan) => (
-        <Space>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: record.isActive ? "#f6ffed" : "#f5f5f5",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <CrownOutlined
-              style={{ color: record.isActive ? "#faad14" : "#d9d9d9", fontSize: 18 }}
-            />
-          </div>
-          <div>
-            <div style={{ fontWeight: 500 }}>{record.displayName}</div>
-            <Text type="secondary" style={{ fontSize: 12 }}>{record.name}</Text>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: "Price",
-      key: "price",
-      render: (_: unknown, record: Plan) => (
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 16 }}>
-            {record.price === 0 ? "Free" : `₹${record.price.toLocaleString()}`}
-          </div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            / {record.billingCycle}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: "Limits",
-      key: "limits",
-      render: (_: unknown, record: Plan) => (
-        <Space direction="vertical" size={0}>
-          <Text>Users: {record.maxUsers === -1 ? "Unlimited" : record.maxUsers}</Text>
-          <Text>Projects: {record.maxProjects === -1 ? "Unlimited" : record.maxProjects}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: "Features",
-      key: "features",
-      render: (_: unknown, record: Plan) => (
-        <Space size={[0, 4]} wrap>
-          {Object.entries(record.featureFlags || {}).map(([key, value]) => (
-            <Tag key={key} color={value ? "success" : "default"}>
-              {value ? <CheckCircleOutlined /> : <CloseCircleOutlined />} {FEATURE_LABELS[key] || key}
-            </Tag>
-          ))}
-        </Space>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "isActive",
-      key: "isActive",
-      width: 100,
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? "success" : "default"}>
-          {isActive ? "Active" : "Inactive"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 100,
-      render: (_: unknown, record: Plan) => (
-        <Space size="small">
-          <Tooltip title="Edit">
-            <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          </Tooltip>
-          <Popconfirm
-            title="Deactivate plan?"
-            description="This will hide the plan from new subscriptions"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Tooltip title="Deactivate">
-              <Button type="text" danger icon={<DeleteOutlined />} />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <Typography.Title level={4} style={{ margin: 0 }}>Plans</Typography.Title>
-            <Text type="secondary">Manage subscription plans for tenants</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchPlans}>Refresh</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Add Plan</Button>
-          </Space>
+    <div className="flex flex-col gap-6" data-testid="platform-plans">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">Subscription Management</h1>
+          <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>Manage subscription tiers for tenant companies</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={fetchPlans} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }}>
+            <FiRefreshCw /> Refresh
+          </button>
+          <button onClick={openCreate} className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md" style={{ background: "var(--ui-primary)", color: "#fff" }}>
+            <FiPlus /> Add New Plan
+          </button>
         </div>
       </div>
 
-      <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-        <Spin spinning={loading}>
-          <Table
-            columns={columns}
-            dataSource={plans}
-            rowKey="id"
-            pagination={{ pageSize: 10 }}
-            locale={{
-              emptyText: (
-                <Empty description="No plans found">
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Add Plan</Button>
-                </Empty>
-              ),
-            }}
-          />
-        </Spin>
-      </Card>
+      {loading ? (
+        <div className="py-16 text-center" style={{ color: "var(--ui-text-muted)" }}>Loading plans...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {plans.map((plan) => {
+            const popular = plan.name === "professional";
+            const features = [
+              `${plan.maxUsers >= 9999 ? "Unlimited" : plan.maxUsers} Users`,
+              `${plan.maxProjects >= 9999 ? "Unlimited" : plan.maxProjects} Projects`,
+              `${plan.maxStorageGb} GB Storage`,
+              `${plan.maxApiCalls.toLocaleString("en-IN")} API Calls`,
+              `${plan.supportLevel} Support`,
+            ];
+            return (
+              <div
+                key={plan.id}
+                className="rounded-xl border p-6 shadow-sm flex flex-col relative"
+                style={{
+                  background: "var(--ui-surface)",
+                  borderColor: popular ? "var(--ui-primary)" : "var(--ui-border)",
+                  borderWidth: popular ? 2 : 1,
+                }}
+              >
+                {popular && (
+                  <span className="absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: "var(--ui-primary-soft)", color: "var(--ui-primary)" }}>
+                    Most Popular
+                  </span>
+                )}
+                <h3 className="text-lg font-bold mb-1">{plan.displayName}</h3>
+                <p className="text-sm mb-4 min-h-[40px]" style={{ color: "var(--ui-text-muted)" }}>{plan.description || "—"}</p>
+                <div className="mb-5">
+                  <span className="text-3xl font-bold" style={{ color: "var(--ui-primary)" }}>{formatINR(plan.price)}</span>
+                  {plan.price > 0 && <span className="text-sm ml-1" style={{ color: "var(--ui-text-muted)" }}>/ {plan.billingCycle === "yearly" ? "year" : "month"}</span>}
+                </div>
+                <ul className="flex flex-col gap-2 mb-6 flex-1">
+                  {features.map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-sm">
+                      <FiCheck className="text-green-600" /> {f}
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={() => openEdit(plan)} className="w-full py-2.5 border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50" style={{ borderColor: "var(--ui-border)" }}>
+                  <FiEdit2 /> Edit Plan
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      <Modal
-        title={editingPlan ? "Edit Plan" : "Add Plan"}
-        open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        width={640}
-      >
-        <Form form={form} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="name" label="Plan ID" rules={[{ required: true }]}>
-                <Input placeholder="e.g. starter" disabled={!!editingPlan} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="displayName" label="Display Name" rules={[{ required: true }]}>
-                <Input placeholder="e.g. Starter Plan" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={2} placeholder="Plan description" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="price" label="Price (₹)" rules={[{ required: true }]}>
-                <InputNumber min={0} style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="billingCycle" label="Billing Cycle" rules={[{ required: true }]}>
-                <Select>
-                  <Option value="monthly">Monthly</Option>
-                  <Option value="yearly">Yearly</Option>
-                  <Option value="one-time">One-time</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="maxUsers" label="Max Users (-1 = Unlimited)">
-                <InputNumber min={-1} style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="maxProjects" label="Max Projects (-1 = Unlimited)">
-                <InputNumber min={-1} style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Divider>Feature Flags</Divider>
-          <Form.Item name="featureFlags" label={null}>
-            <Row gutter={16}>
-              {Object.entries(FEATURE_LABELS).map(([key, label]) => (
-                <Col span={8} key={key}>
-                  <Form.Item name={["featureFlags", key]} valuePropName="checked" noStyle>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
-                      <span>{label}</span>
-                      <Switch />
-                    </div>
-                  </Form.Item>
-                </Col>
-              ))}
-            </Row>
-          </Form.Item>
-        </Form>
-      </Modal>
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4">
+          <div className="w-full max-w-lg rounded-xl border p-8 shadow-2xl" style={{ background: "var(--ui-surface)", borderColor: "var(--ui-border)" }}>
+            <h2 className="text-xl font-bold mb-4">{editing ? "Edit Plan" : "Add New Plan"}</h2>
+            <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
+              {!editing && (
+                <Field label="Plan Key" value={form.name || ""} onChange={(v) => setForm({ ...form, name: v })} placeholder="professional" />
+              )}
+              <Field label="Display Name" value={form.displayName || ""} onChange={(v) => setForm({ ...form, displayName: v })} />
+              <Field label="Description" value={form.description || ""} onChange={(v) => setForm({ ...form, description: v })} />
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Price (INR)" type="number" value={String(form.price ?? 0)} onChange={(v) => setForm({ ...form, price: Number(v) })} />
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5">Billing Cycle</label>
+                  <select className="w-full p-2.5 border rounded-lg" style={{ borderColor: "var(--ui-border)" }} value={form.billingCycle || "monthly"} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Max Users" type="number" value={String(form.maxUsers ?? 0)} onChange={(v) => setForm({ ...form, maxUsers: Number(v) })} />
+                <Field label="Max Projects" type="number" value={String(form.maxProjects ?? 0)} onChange={(v) => setForm({ ...form, maxProjects: Number(v) })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Max Storage GB" type="number" value={String(form.maxStorageGb ?? 0)} onChange={(v) => setForm({ ...form, maxStorageGb: Number(v) })} />
+                <Field label="Max API Calls" type="number" value={String(form.maxApiCalls ?? 0)} onChange={(v) => setForm({ ...form, maxApiCalls: Number(v) })} />
+              </div>
+              <Field label="Support Level" value={form.supportLevel || ""} onChange={(v) => setForm({ ...form, supportLevel: v })} />
+            </div>
+            {error && <div className="text-sm mt-3" style={{ color: "var(--ui-danger)" }}>{error}</div>}
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t" style={{ borderColor: "var(--ui-border)" }}>
+              <button className="px-4 py-2 rounded-lg hover:bg-gray-100" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button disabled={submitting} className="px-4 py-2 rounded-lg font-semibold" style={{ background: "var(--ui-primary)", color: "#fff" }} onClick={save}>
+                {submitting ? "Saving..." : editing ? "Save Changes" : "Create Plan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold mb-1.5">{label}</label>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full p-2.5 border rounded-lg outline-none"
+        style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+      />
     </div>
   );
 }

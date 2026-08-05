@@ -67,8 +67,11 @@ export async function middleware(request: NextRequest) {
 
   // Check for access_token cookie on page routes
   const token = request.cookies.get('access_token')?.value;
+  const isPlatformPage = pathname.startsWith('/platform');
+  const loginPath = isPlatformPage ? '/platform/login' : '/login';
+
   if (!token) {
-    const loginUrl = new URL('/login', request.url);
+    const loginUrl = new URL(loginPath, request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -76,8 +79,13 @@ export async function middleware(request: NextRequest) {
   // Verify the token is still valid
   const payload = await verifyAccessToken(token);
   if (!payload) {
-    const loginUrl = new URL('/login', request.url);
+    const loginUrl = new URL(loginPath, request.url);
     loginUrl.searchParams.set('from', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (isPlatformPage && !payload.isPlatformAdmin) {
+    const loginUrl = new URL('/platform/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
 
