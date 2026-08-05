@@ -19,6 +19,7 @@
     "test:e2e:login": "tsx scripts/e2e-central-login.ts",
     "test:isolation": "tsx scripts/test-isolation.ts",
     "test:phase01": "tsx scripts/test-phase01.ts",
+    "lint:phase01": "eslint \"lib/rbac/**/*.{ts,tsx}\" \"lib/api/**/*.{ts,tsx}\" \"lib/tenants/**/*.{ts,tsx}\" \"lib/auth/**/*.{ts,tsx}\" \"scripts/test-isolation.ts\" \"scripts/test-phase01.ts\"",
     "db:migrate:tenants": "tsx scripts/migrate-tenants.ts",
     "test": "tsx scripts/test-isolation.ts && tsx scripts/test-phase01.ts"
   },

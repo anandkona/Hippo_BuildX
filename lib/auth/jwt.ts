@@ -34,7 +34,7 @@ export async function verifyAccessToken(token: string): Promise<TokenPayload | n
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return payload as unknown as TokenPayload;
-  } catch (err) {
+  } catch { 
     return null;
   }
 }

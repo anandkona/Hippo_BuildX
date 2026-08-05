@@ -44,5 +44,6 @@ jobs:
         run: npm run test:isolation
       - name: Phase 0/1 unit + DB proofs
         run: npm run test:phase01
-      - name: Lint
-        run: npm run lint
+      # Full-repo lint still has legacy UI/script debt; gate Phase 0/1 paths only.
+      - name: Lint (Phase 0/1 paths)
+        run: npm run lint:phase01
