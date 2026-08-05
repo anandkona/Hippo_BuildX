@@ -49,7 +49,7 @@ async function loginPlatform(email: string, password: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
-    maxAge: 15 * 60,
+    maxAge: 7 * 24 * 60 * 60,
     path: '/',
   });
 
@@ -116,7 +116,7 @@ async function loginTenant(tenantSlug: string, email: string, password: string, 
     httpOnly: true,
     secure: isProd,
     sameSite: 'strict',
-    maxAge: 15 * 60,
+    maxAge: 7 * 24 * 60 * 60,
     path: '/',
   });
   response.cookies.set('refresh_token', refreshToken, {

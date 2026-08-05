@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FiPlus, FiServer, FiEye, FiPause, FiPlay, FiRefreshCw } from "react-icons/fi";
+import { Table, Tag } from "antd";
 
 interface Tenant {
   id: string;
@@ -92,8 +93,8 @@ function Field({
   );
 }
 
-const inputCls = "w-full p-2.5 border rounded-lg outline-none text-sm";
-const inputStyle = { borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" } as const;
+const inputCls = "w-full p-2.5 border rounded-lg outline-none text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent";
+const inputStyle = { borderColor: "var(--ui-border)", color: "var(--ui-text)" } as const;
 
 export default function TenantsPage() {
   const router = useRouter();
@@ -101,8 +102,6 @@ export default function TenantsPage() {
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [planFilter, setPlanFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -160,11 +159,9 @@ export default function TenantsPage() {
         (t.city || "").toLowerCase().includes(q) ||
         (t.contactEmail || "").toLowerCase().includes(q) ||
         (t.contactName || "").toLowerCase().includes(q);
-      const okPlan = !planFilter || t.planName === planFilter;
-      const okStatus = !statusFilter || t.status === statusFilter;
-      return okSearch && okPlan && okStatus;
+      return okSearch;
     });
-  }, [tenants, search, planFilter, statusFilter]);
+  }, [tenants, search]);
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -215,6 +212,132 @@ export default function TenantsPage() {
   const planOptions = Array.from(new Set(tenants.map((t) => t.planName).filter(Boolean))) as string[];
   const canSubmit = Boolean(form.name && form.slug);
 
+  const columns = [
+    {
+      title: "S.No",
+      key: "sno",
+      render: (_: any, __: any, index: number) => index + 1,
+      width: 80,
+    },
+    {
+      title: "Company Name",
+      dataIndex: "name",
+      key: "name",
+      render: (text: string, record: Tenant) => (
+        <button
+          className="font-semibold text-left"
+          style={{ color: "var(--ui-primary)" }}
+          onClick={() => router.push(`/platform/tenants/${record.id}`)}
+        >
+          {text}
+        </button>
+      ),
+    },
+    {
+      title: "GSTIN",
+      dataIndex: "gstin",
+      key: "gstin",
+      render: (text: string) => text ? <span className="font-mono text-sm" style={{ color: "var(--ui-text-muted)" }}>{text}</span> : "—",
+    },
+    {
+      title: "Location",
+      key: "location",
+      render: (_: any, record: Tenant) => (
+        <span style={{ color: "var(--ui-text-muted)" }}>
+          {[record.city, record.state].filter(Boolean).join(", ") || "—"}
+        </span>
+      ),
+    },
+    {
+      title: "Contact Name",
+      dataIndex: "contactName",
+      key: "contactName",
+      render: (text: string) => <span className="font-medium">{text || "—"}</span>,
+    },
+    {
+      title: "Contact Email",
+      dataIndex: "contactEmail",
+      key: "contactEmail",
+      render: (text: string, record: Tenant) => (
+        <span style={{ color: "var(--ui-text-muted)" }}>
+          {text || record.contactPhone || "—"}
+        </span>
+      ),
+    },
+    {
+      title: "Plan",
+      dataIndex: "planName",
+      key: "planName",
+      filters: planOptions.map(p => ({ text: p, value: p })),
+      onFilter: (value: boolean | React.Key, record: Tenant) => record.planName === value,
+      render: (text: string) => text ? (
+        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+          {text}
+        </span>
+      ) : "—",
+    },
+    {
+      title: "Users",
+      dataIndex: "userCount",
+      key: "userCount",
+      render: (count: number) => count ?? 0,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      filters: [
+        { text: "Active", value: "active" },
+        { text: "Suspended", value: "suspended" },
+        { text: "Pending", value: "provisioning" },
+        { text: "Failed", value: "failed" },
+      ],
+      onFilter: (value: boolean | React.Key, record: Tenant) => record.status === value,
+      render: (status: string) => {
+        if (status === "active") return <Tag color="green">Active</Tag>;
+        if (status === "provisioning") return <Tag color="orange" className="animate-pulse">Provisioning DB...</Tag>;
+        if (status === "suspended") return <Tag color="red">Suspended</Tag>;
+        if (status === "failed") return <Tag color="red">Failed</Tag>;
+        return <Tag>{status}</Tag>;
+      },
+    },
+    {
+      title: "Created",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date: string) => (
+        <span style={{ color: "var(--ui-text-muted)" }}>
+          {new Date(date).toLocaleDateString("en-IN")}
+        </span>
+      ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      align: "right" as const,
+      render: (_: any, record: Tenant) => (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            className="p-1.5 rounded-md hover:bg-gray-100"
+            title="View"
+            onClick={() => router.push(`/platform/tenants/${record.id}`)}
+          >
+            <FiEye size={16} />
+          </button>
+          {(record.status === "active" || record.status === "suspended") && (
+            <button
+              className="p-1.5 rounded-md hover:bg-gray-100"
+              title={record.status === "suspended" ? "Resume" : "Suspend"}
+              onClick={() => toggleStatus(record)}
+            >
+              {record.status === "suspended" ? <FiPlay size={16} className="text-green-600" /> : <FiPause size={16} className="text-orange-500" />}
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6" data-testid="platform-tenants">
       <div className="flex items-center justify-between gap-4">
@@ -241,29 +364,6 @@ export default function TenantsPage() {
           className="px-3 py-2 border rounded-md text-sm min-w-[240px]"
           style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface)" }}
         />
-        <select
-          value={planFilter}
-          onChange={(e) => setPlanFilter(e.target.value)}
-          className="px-3 py-2 border rounded-md text-sm"
-          style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface)" }}
-        >
-          <option value="">Filter by Plan</option>
-          {planOptions.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border rounded-md text-sm"
-          style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface)" }}
-        >
-          <option value="">Filter by Status</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-          <option value="provisioning">Pending</option>
-          <option value="failed">Failed</option>
-        </select>
         <button
           onClick={fetchTenants}
           className="px-3 py-2 border rounded-md text-sm flex items-center gap-2"
@@ -279,100 +379,19 @@ export default function TenantsPage() {
         </div>
       )}
 
-      <div className="rounded-lg overflow-hidden border shadow-sm" style={{ background: "var(--ui-surface)", borderColor: "var(--ui-border)" }}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="border-b bg-gray-50/50" style={{ borderColor: "var(--ui-border)" }}>
-              <tr>
-                <th className="px-5 py-4 font-semibold">Company Name</th>
-                <th className="px-5 py-4 font-semibold">Location</th>
-                <th className="px-5 py-4 font-semibold">Primary Contact</th>
-                <th className="px-5 py-4 font-semibold">Subdomain</th>
-                <th className="px-5 py-4 font-semibold">Plan</th>
-                <th className="px-5 py-4 font-semibold">Users</th>
-                <th className="px-5 py-4 font-semibold">Status</th>
-                <th className="px-5 py-4 font-semibold">Created</th>
-                <th className="px-5 py-4 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y" style={{ borderColor: "var(--ui-border)" }}>
-              {loading ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center" style={{ color: "var(--ui-text-muted)" }}>Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center" style={{ color: "var(--ui-text-muted)" }}>No tenants found</td></tr>
-              ) : (
-                filtered.map((tenant) => (
-                  <tr key={tenant.id} className="hover:bg-black/[0.02]">
-                    <td className="px-5 py-4">
-                      <button
-                        className="font-semibold flex items-center gap-2"
-                        style={{ color: "var(--ui-primary)" }}
-                        onClick={() => router.push(`/platform/tenants/${tenant.id}`)}
-                      >
-                        <FiServer className="text-gray-400" />
-                        {tenant.name}
-                      </button>
-                      {tenant.gstin && (
-                        <div className="text-xs mt-0.5 font-mono" style={{ color: "var(--ui-text-muted)" }}>
-                          GSTIN {tenant.gstin}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-4" style={{ color: "var(--ui-text-muted)" }}>
-                      {[tenant.city, tenant.state].filter(Boolean).join(", ") || "—"}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="font-medium">{tenant.contactName || "—"}</div>
-                      <div className="text-xs" style={{ color: "var(--ui-text-muted)" }}>
-                        {tenant.contactEmail || tenant.contactPhone || ""}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 font-mono text-xs">
-                      {tenant.domain || `${tenant.slug}.hippobuildx.com`}
-                    </td>
-                    <td className="px-5 py-4">
-                      {tenant.planName ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                          {tenant.planName}
-                        </span>
-                      ) : "—"}
-                    </td>
-                    <td className="px-5 py-4">{tenant.userCount ?? 0}</td>
-                    <td className="px-5 py-4">
-                      {tenant.status === "active" && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Active</span>}
-                      {tenant.status === "provisioning" && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 animate-pulse">Provisioning DB...</span>}
-                      {tenant.status === "suspended" && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Suspended</span>}
-                      {tenant.status === "failed" && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Failed</span>}
-                    </td>
-                    <td className="px-5 py-4" style={{ color: "var(--ui-text-muted)" }}>
-                      {new Date(tenant.createdAt).toLocaleDateString("en-IN")}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          className="p-1.5 rounded-md hover:bg-gray-100"
-                          title="View"
-                          onClick={() => router.push(`/platform/tenants/${tenant.id}`)}
-                        >
-                          <FiEye size={16} />
-                        </button>
-                        {(tenant.status === "active" || tenant.status === "suspended") && (
-                          <button
-                            className="p-1.5 rounded-md hover:bg-gray-100"
-                            title={tenant.status === "suspended" ? "Resume" : "Suspend"}
-                            onClick={() => toggleStatus(tenant)}
-                          >
-                            {tenant.status === "suspended" ? <FiPlay size={16} className="text-green-600" /> : <FiPause size={16} className="text-orange-500" />}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div 
+        className="rounded-lg overflow-hidden border shadow-sm bg-white [&_.ant-table-body::-webkit-scrollbar]:hidden [&_.ant-table-body]:[-ms-overflow-style:none] [&_.ant-table-body]:[scrollbar-width:none]" 
+        style={{ borderColor: "var(--ui-border)" }}
+      >
+        <Table 
+          columns={columns} 
+          dataSource={filtered} 
+          rowKey="id" 
+          loading={loading}
+          pagination={{ defaultPageSize: 15 }}
+          scroll={{ x: 'max-content', y: 'calc(60vh - 120px)' }}
+          size="middle"
+        />
       </div>
 
       {modalOpen && (
@@ -383,9 +402,6 @@ export default function TenantsPage() {
           >
             <div className="px-8 pt-7 pb-4 border-b" style={{ borderColor: "var(--ui-border)" }}>
               <h2 className="text-2xl font-bold mb-1">Provision New Tenant</h2>
-              <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>
-                Capture company details if available. Only company name and subdomain are required — contact and address are optional.
-              </p>
             </div>
 
             <div className="px-8 py-5 overflow-y-auto flex-1 space-y-7">
@@ -497,25 +513,6 @@ export default function TenantsPage() {
                   Workspace & First Login
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <Field label="Subdomain" required hint="Auto-filled from company name; edit if needed">
-                      <div className="flex items-center">
-                        <input
-                          className="w-full p-2.5 border border-r-0 rounded-l-lg outline-none font-mono text-sm"
-                          style={inputStyle}
-                          value={form.slug}
-                          onChange={(e) => {
-                            setSlugManual(true);
-                            setField("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
-                          }}
-                          placeholder="skyline"
-                        />
-                        <div className="px-4 py-2.5 bg-gray-100 border border-l-0 rounded-r-lg text-gray-500 text-sm font-mono whitespace-nowrap" style={{ borderColor: "var(--ui-border)" }}>
-                          .hippobuildx.com
-                        </div>
-                      </div>
-                    </Field>
-                  </div>
                   <Field label="Tenant Admin Name">
                     <input className={inputCls} style={inputStyle} value={form.adminName} onChange={(e) => setField("adminName", e.target.value)} placeholder="Defaults to contact / company admin" />
                   </Field>

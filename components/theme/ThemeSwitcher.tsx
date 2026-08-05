@@ -1,31 +1,28 @@
-﻿"use client";
+"use client";
 
 import React from "react";
+import { Dropdown, Button } from "antd";
+import { BgColorsOutlined } from "@ant-design/icons";
 import { useTheme } from "./ThemeProvider";
 
 export default function ThemeSwitcher() {
-  const { mounted, themeId, themes, setTheme } = useTheme();
+  const { mounted, themes, setTheme } = useTheme();
 
   if (!mounted) {
-    return <div className="h-9 w-40 bg-gray-200 animate-pulse rounded-md opacity-20" />;
+    return <div className="h-8 w-24 bg-gray-200 animate-pulse rounded-md opacity-20" />;
   }
 
+  const items = Object.values(themes).map((t: any) => ({
+    key: t.id,
+    label: t.name,
+    onClick: () => setTheme(t.id),
+  }));
+
   return (
-    <select
-      value={themeId}
-      onChange={(e) => setTheme(e.target.value)}
-      className="rounded-md border px-3 py-1.5 text-sm font-medium outline-none transition-colors"
-      style={{
-        background: "var(--ui-surface)",
-        color: "var(--ui-text)",
-        borderColor: "var(--ui-border)",
-      }}
-    >
-      {Object.values(themes).map((t: any) => (
-        <option key={t.id} value={t.id}>
-          {t.name}
-        </option>
-      ))}
-    </select>
+    <Dropdown menu={{ items }} placement="bottomRight" trigger={['click']}>
+      <Button icon={<BgColorsOutlined />} type="default" style={{ background: "var(--ui-surface)", color: "var(--ui-text)", borderColor: "var(--ui-border)" }}>
+        Theme
+      </Button>
+    </Dropdown>
   );
 }

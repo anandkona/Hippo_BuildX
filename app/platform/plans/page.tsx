@@ -184,7 +184,7 @@ export default function PlansPage() {
                 <Field label="Price (INR)" type="number" value={String(form.price ?? 0)} onChange={(v) => setForm({ ...form, price: Number(v) })} />
                 <div>
                   <label className="block text-sm font-semibold mb-1.5">Billing Cycle</label>
-                  <select className="w-full p-2.5 border rounded-lg" style={{ borderColor: "var(--ui-border)" }} value={form.billingCycle || "monthly"} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}>
+                  <select className="w-full p-2.5 border rounded-lg outline-none text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent" style={{ borderColor: "var(--ui-border)", color: "var(--ui-text)" }} value={form.billingCycle || "monthly"} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}>
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
                   </select>
@@ -223,8 +223,8 @@ function Field({ label, value, onChange, placeholder, type = "text" }: { label: 
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full p-2.5 border rounded-lg outline-none"
-        style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface-muted)" }}
+        className="w-full p-2.5 border rounded-lg outline-none text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent"
+        style={{ borderColor: "var(--ui-border)", color: "var(--ui-text)" }}
       />
     </div>
   );
