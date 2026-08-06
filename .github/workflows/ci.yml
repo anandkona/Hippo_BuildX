@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, dev2]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: buildx
+          POSTGRES_PASSWORD: buildx
+          POSTGRES_DB: buildx
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U buildx -d buildx"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://buildx:buildx@localhost:5432/buildx
+      JWT_SECRET: ci-test-jwt-secret-please-change
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Push control-plane schema
+        run: npx drizzle-kit push --force
+      - name: Seed platform user
+        run: npx tsx scripts/seed.ts
+      - name: Isolation suite
+        run: npm run test:isolation
+      - name: Phase 0/1 unit + DB proofs
+        run: npm run test:phase01
+      # Full-repo lint still has legacy UI/script debt; gate Phase 0/1 paths only.
+      - name: Lint (Phase 0/1 paths)
+        run: npm run lint:phase01
