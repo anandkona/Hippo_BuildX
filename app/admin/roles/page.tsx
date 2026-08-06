@@ -27,6 +27,7 @@ import {
   ReloadOutlined,
   LockOutlined,
   SafetyCertificateOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 
 const { Text } = Typography;
@@ -69,6 +70,131 @@ interface Role {
   created_at: string;
 }
 
+function PermissionsEditor({ value = [], onChange }: { value?: string[], onChange?: (val: string[]) => void }) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredModules = PERMISSION_MODULES.filter(mod => 
+    (MODULE_LABELS[mod] || mod).toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleCheckboxChange = (mod: string, action: string, checked: boolean) => {
+    const next = new Set(value);
+    const key = `${mod}:${action}`;
+    if (checked) {
+      next.add(key);
+      if (action !== 'read') {
+        next.add(`${mod}:read`);
+      }
+    } else {
+      next.delete(key);
+      if (action === 'read') {
+        PERMISSION_ACTIONS.forEach(a => next.delete(`${mod}:${a}`));
+      }
+    }
+    onChange?.(Array.from(next));
+  };
+
+  const allPossibleCount = filteredModules.length * PERMISSION_ACTIONS.length;
+  const currentFilteredCount = filteredModules.reduce((acc, mod) => {
+    return acc + PERMISSION_ACTIONS.filter(a => value.includes(`${mod}:${a}`)).length;
+  }, 0);
+  
+  const isAllSelected = currentFilteredCount === allPossibleCount && allPossibleCount > 0;
+  const isIndeterminate = currentFilteredCount > 0 && currentFilteredCount < allPossibleCount;
+
+  const handleSelectAll = (e: any) => {
+    const checked = e.target.checked;
+    const next = new Set(value);
+    filteredModules.forEach(mod => {
+      PERMISSION_ACTIONS.forEach(a => {
+        if (checked) next.add(`${mod}:${a}`);
+        else next.delete(`${mod}:${a}`);
+      });
+    });
+    onChange?.(Array.from(next));
+  };
+
+  const handleRowSelectAll = (mod: string, checked: boolean) => {
+    const next = new Set(value);
+    if (checked) {
+      PERMISSION_ACTIONS.forEach(a => next.add(`${mod}:${a}`));
+    } else {
+      PERMISSION_ACTIONS.forEach(a => next.delete(`${mod}:${a}`));
+    }
+    onChange?.(Array.from(next));
+  };
+
+  const isRowAllChecked = (mod: string) => PERMISSION_ACTIONS.every(a => value.includes(`${mod}:${a}`));
+  const isRowIndeterminate = (mod: string) => {
+    const count = PERMISSION_ACTIONS.filter(a => value.includes(`${mod}:${a}`)).length;
+    return count > 0 && count < PERMISSION_ACTIONS.length;
+  };
+
+  return (
+    <div style={{ border: '1px solid #e8e8e8', borderRadius: 8, padding: 16, background: '#fafafa' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <Checkbox 
+          indeterminate={isIndeterminate} 
+          checked={isAllSelected} 
+          onChange={handleSelectAll}
+          style={{ fontWeight: 500 }}
+        >
+          Select All Modules
+        </Checkbox>
+        <Input 
+          prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />} 
+          placeholder="Search modules..." 
+          style={{ width: 220, borderRadius: 6 }} 
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          allowClear
+        />
+      </div>
+      <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 14 }}>
+          <thead style={{ background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+            <tr>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, borderRight: '1px solid #f0f0f0', color: '#262626' }}>Module</th>
+              {PERMISSION_ACTIONS.map(action => (
+                <th key={action} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'capitalize', color: '#262626' }}>
+                  {action}
+                </th>
+              ))}
+              <th style={{ padding: '12px 16px', fontWeight: 600, borderLeft: '1px solid #f0f0f0', color: '#1890ff', background: '#e6f7ff' }}>Check All</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredModules.length > 0 ? filteredModules.map((mod, index) => (
+              <tr key={mod} style={{ borderBottom: index < filteredModules.length - 1 ? '1px solid #f0f0f0' : 'none', transition: 'background 0.3s' }} className="hover:bg-gray-50">
+                <td style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500, background: '#fafafa', borderRight: '1px solid #f0f0f0', color: '#595959' }}>
+                  {MODULE_LABELS[mod] || mod}
+                </td>
+                {PERMISSION_ACTIONS.map(action => (
+                  <td key={action} style={{ padding: '12px 8px' }}>
+                    <Checkbox 
+                      checked={value.includes(`${mod}:${action}`)}
+                      onChange={(e) => handleCheckboxChange(mod, action, e.target.checked)}
+                    />
+                  </td>
+                ))}
+                <td style={{ padding: '12px 16px', borderLeft: '1px solid #f0f0f0', background: '#fafafa' }}>
+                  <Checkbox 
+                    checked={isRowAllChecked(mod)} 
+                    indeterminate={isRowIndeterminate(mod)} 
+                    onChange={e => handleRowSelectAll(mod, e.target.checked)} 
+                  />
+                </td>
+              </tr>
+            )) : (
+              <tr><td colSpan={PERMISSION_ACTIONS.length + 2} style={{ padding: 32 }}><Empty description="No modules found" image={Empty.PRESENTED_IMAGE_SIMPLE} /></td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +203,8 @@ export default function RolesPage() {
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+  const [viewingRole, setViewingRole] = useState<Role | null>(null);
+  const [viewPermsModalOpen, setViewPermsModalOpen] = useState(false);
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -204,24 +332,33 @@ export default function RolesPage() {
               <SafetyCertificateOutlined style={{ color: "#1890ff" }} />
             )}
           </div>
-          <div>
-            <div style={{ fontWeight: 500 }}>{record.name}</div>
-            {record.description && (
-              <Text type="secondary" style={{ fontSize: 12 }}>{record.description}</Text>
-            )}
-          </div>
+          <div style={{ fontWeight: 500 }}>{record.name}</div>
         </Space>
+      ),
+    },
+    {
+      title: "Description",
+      dataIndex: "description",
+      key: "description",
+      render: (text: string) => (
+        <Text type="secondary" style={{ fontSize: 13 }}>{text || "—"}</Text>
       ),
     },
     {
       title: "Permissions",
       dataIndex: "permissions",
       key: "permissions",
-      render: (permissions: string[]) => (
-        <Space>
-          <Tag>{permissions?.length ?? 0} permissions</Tag>
-          {permissions?.length > 0 && renderPermissionTags(permissions)}
-        </Space>
+      render: (_: unknown, record: Role) => (
+        <Tooltip title="View Permissions">
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            onClick={() => {
+              setViewingRole(record);
+              setViewPermsModalOpen(true);
+            }}
+          />
+        </Tooltip>
       ),
     },
     {
@@ -346,45 +483,75 @@ export default function RolesPage() {
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
         confirmLoading={submitting}
-        width={640}
+        width={800}
         destroyOnClose
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="name"
-            label="Role Name"
+            label={<span style={{ fontWeight: 500 }}>Role Name</span>}
             rules={[{ required: true, message: "Please enter a role name" }]}
           >
-            <Input placeholder="e.g. Project Manager" />
+            <Input placeholder="e.g. Project Manager" style={{ borderRadius: 6, padding: '8px 12px' }} />
           </Form.Item>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={2} placeholder="Brief description of this role" />
+          <Form.Item name="description" label={<span style={{ fontWeight: 500 }}>Description</span>}>
+            <Input.TextArea rows={2} placeholder="Brief description of this role" style={{ borderRadius: 6, padding: '8px 12px' }} />
           </Form.Item>
-          <Form.Item name="permissions" label="Permissions">
-            <Collapse ghost>
-              {PERMISSION_MODULES.map((mod) => (
-                <Panel
-                  key={mod}
-                  header={
-                    <Space>
-                      <span style={{ fontWeight: 500, textTransform: "capitalize" }}>
-                        {MODULE_LABELS[mod] || mod}
-                      </span>
-                      <Tag>{PERMISSION_ACTIONS.length} permissions</Tag>
-                    </Space>
-                  }
-                >
-                  <Checkbox.Group
-                    options={PERMISSION_ACTIONS.map((action) => ({
-                      label: action.charAt(0).toUpperCase() + action.slice(1),
-                      value: `${mod}:${action}`,
-                    }))}
-                  />
-                </Panel>
-              ))}
-            </Collapse>
+          <Form.Item name="permissions" label={<span style={{ fontWeight: 500 }}>Permissions</span>}>
+            <PermissionsEditor />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={`Permissions - ${viewingRole?.name}`}
+        open={viewPermsModalOpen}
+        onCancel={() => setViewPermsModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setViewPermsModalOpen(false)}>
+            Close
+          </Button>,
+        ]}
+        width={800}
+      >
+        <div style={{ marginTop: 16 }}>
+          {viewingRole?.permissions && viewingRole.permissions.length > 0 ? (
+            <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: 14 }}>
+                <thead style={{ background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, borderRight: '1px solid #f0f0f0' }}>Module</th>
+                    {PERMISSION_ACTIONS.map(action => (
+                      <th key={action} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'capitalize' }}>
+                        {action}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {PERMISSION_MODULES.map((mod, index) => (
+                    <tr key={mod} style={{ borderBottom: index < PERMISSION_MODULES.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500, background: '#fafafa', borderRight: '1px solid #f0f0f0' }}>
+                        {MODULE_LABELS[mod] || mod}
+                      </td>
+                      {PERMISSION_ACTIONS.map(action => (
+                        <td key={action} style={{ padding: '12px 8px' }}>
+                          <Checkbox 
+                            checked={viewingRole.permissions.includes(`${mod}:${action}`)} 
+                            style={{ pointerEvents: 'none' }} 
+                            tabIndex={-1}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty description="No permissions mapped" />
+          )}
+        </div>
       </Modal>
     </div>
   );

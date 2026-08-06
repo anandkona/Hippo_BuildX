@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -27,6 +28,12 @@ const modules = [
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -80,14 +87,29 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       <div className="mt-auto pt-6 border-t" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
         <button
           type="button"
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium text-left"
+          onClick={() => setShowLogoutConfirm(true)}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium text-left hover:bg-white/10"
           style={{ color: "var(--ui-sidebar-text)", opacity: 0.85 }}
         >
+          <FiUser size={18} />
+          <span className="flex-1">Sign Out</span>
           <FiLogOut size={18} />
-          <span>Sign Out</span>
         </button>
       </div>
+
+      {showLogoutConfirm && mounted && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center px-4" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="w-full max-w-sm rounded-xl border p-6 shadow-2xl" style={{ background: "var(--ui-surface)", borderColor: "var(--ui-border)", color: "var(--ui-text)" }} onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-2">Sign Out</h2>
+            <p className="text-sm mb-6" style={{ color: "var(--ui-text-muted)" }}>Are you sure you want to sign out?</p>
+            <div className="flex justify-end gap-3">
+              <button className="px-4 py-2 rounded-lg hover:bg-gray-100 transition-all font-medium text-gray-800" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
+              <button className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition-all shadow-md" onClick={handleLogout}>OK</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
