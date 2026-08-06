@@ -59,7 +59,6 @@ export async function GET(_req: Request, { params }: RouteContext) {
         users: { used: usage.users || 0, limit: sub?.maxUsers || 0 },
         projects: { used: usage.projects || 0, limit: sub?.maxProjects || 0 },
         storage: { used: usage.storageGb || 0, limit: sub?.maxStorageGb || 0 },
-        apiCalls: { used: usage.apiCalls || 0, limit: sub?.maxApiCalls || 0 },
       },
     });
   } catch (error) {

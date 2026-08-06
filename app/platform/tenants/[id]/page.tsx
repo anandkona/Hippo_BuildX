@@ -180,7 +180,6 @@ export default function TenantDetailsPage() {
     { label: "Users", ...usage.users },
     { label: "Projects", ...usage.projects },
     { label: "Storage (GB)", ...usage.storage },
-    { label: "API Calls", ...usage.apiCalls },
   ];
 
   const address = [
