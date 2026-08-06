@@ -3,6 +3,7 @@ import { tenants } from '@/lib/db/schema/control-plane';
 import { eq } from 'drizzle-orm';
 import { hashPassword } from '@/lib/auth/crypto';
 import { applyTenantMigrations } from '@/lib/tenants/migrations';
+import { ensureDefaultUnitCategories } from '@/lib/projects/defaults';
 
 export interface ProvisionTenantInput {
   tenantId: string;
@@ -29,6 +30,8 @@ const ROLE_SEEDS = [
       { module: 'projects', action: 'read' },
       { module: 'projects', action: 'update' },
       { module: 'projects', action: 'delete' },
+      { module: 'projects', action: 'approve' },
+      { module: 'projects', action: 'export' },
       { module: 'inventory', action: 'read' },
       { module: 'procurement', action: 'read' },
       { module: 'construction', action: 'create' },
@@ -108,6 +111,7 @@ export async function provisionTenant(input: ProvisionTenantInput) {
   try {
     console.log(`[Provisioning] Migrating schema ${schemaName}...`);
     await applyTenantMigrations(tenantId, schemaName);
+    await ensureDefaultUnitCategories(schemaName, tenantId);
 
     const [tenantRow] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
     const adminEmail =
