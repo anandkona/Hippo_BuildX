@@ -3,7 +3,7 @@
   "info": {
     "title": "BuildX / Hippo BuildX API",
     "version": "0.1.0",
-    "description": "Phase 0/1 platform + tenant admin APIs.\n\n**Auth:** HttpOnly cookies (`access_token`, `refresh_token`) or `Authorization: Bearer <jwt>`.\n\n**Central login:** `POST /api/v1/auth/session` with `{ email, password }`.\n\n**Tenant invite:** Buyer sets their own password via `/invite?token=...` (Brevo set-password link). `POST /api/v1/platform/tenants` returns `credentials.mustSetPassword` + `invite.inviteUrl`.\n\n**UI guide:** `docs/UI-BACKEND-GUIDE.md`"
+    "description": "Phase 0/1 platform + tenant admin APIs.\n\n**Auth:** HttpOnly cookies (`access_token`, `refresh_token`) or `Authorization: Bearer <jwt>`.\n\n**Central login:** `POST /api/v1/auth/session` with `{ email, password }`.\n\n**Tenant invite:** Buyer sets their own password via `/invite?token=...` (Brevo set-password link). `POST /api/v1/platform/tenants` returns `credentials.mustSetPassword` + `invite.inviteUrl`.\n\n**Forgot password:** `POST /api/v1/auth/forgot-password` then `GET/POST /api/v1/auth/reset-password` (platform or tenant). UI: `/forgot-password`, `/reset-password?token=...`.\n\n**UI guide:** `docs/UI-BACKEND-GUIDE.md`"
   },
   "servers": [
     { "url": "http://localhost:3000", "description": "Local" },
@@ -337,6 +337,126 @@
         "responses": {
           "200": { "description": "Password set; session cookies issued" },
           "400": { "description": "Invalid invite or weak password" }
+        }
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"],
+        "operationId": "forgotPassword",
+        "summary": "Request password reset email (public)",
+        "description": "Looks up platform users first, then tenant users by email (same order as central login). Always returns a generic success message to avoid account enumeration. Sends a one-time Brevo link valid for 1 hour. In development, response may include `debugResetUrl`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "admin@example.com" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Generic acknowledgement (sent or not)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "debugResetUrl": {
+                      "type": "string",
+                      "description": "Present only in development"
+                    }
+                  }
+                },
+                "example": {
+                  "message": "If an account exists for that email, we sent a password reset link. Check your inbox and spam folder."
+                }
+              }
+            }
+          },
+          "400": { "description": "Email missing" },
+          "503": { "description": "Brevo not configured" }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "get": {
+        "tags": ["Auth"],
+        "operationId": "previewPasswordReset",
+        "summary": "Preview password reset token (public)",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "email": { "type": "string" },
+                    "name": { "type": "string" },
+                    "scope": { "type": "string", "enum": ["platform", "tenant"] },
+                    "expiresAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid/expired/used token" }
+        }
+      },
+      "post": {
+        "tags": ["Auth"],
+        "operationId": "resetPassword",
+        "summary": "Set new password from reset token (public)",
+        "description": "Updates platform_users or tenant schema users.password_hash, marks token used, returns redirectTo `/login?reset=1` (does not auto-login).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token", "password"],
+                "properties": {
+                  "token": { "type": "string" },
+                  "password": { "type": "string", "minLength": 8 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "email": { "type": "string" },
+                    "scope": { "type": "string", "enum": ["platform", "tenant"] },
+                    "redirectTo": { "type": "string", "example": "/login?reset=1" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid token or weak password" }
         }
       }
     },

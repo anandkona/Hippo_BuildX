@@ -21,6 +21,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from") || "";
+  const fromReset = searchParams.get("reset") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -177,9 +178,17 @@ function LoginForm() {
           </div>
 
           <div>
-            <label htmlFor="password" style={labelStyle}>
-              Password
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+              <label htmlFor="password" style={{ ...labelStyle, marginBottom: 0 }}>
+                Password
+              </label>
+              <a
+                href="/forgot-password"
+                style={{ fontSize: 13, fontWeight: 600, color: ui.primary, textDecoration: "none" }}
+              >
+                Forgot password?
+              </a>
+            </div>
             <input
               id="password"
               name="password"
@@ -203,6 +212,20 @@ function LoginForm() {
               }}
             >
               {error}
+            </div>
+          )}
+
+          {fromReset && (
+            <div
+              style={{
+                fontSize: 14,
+                padding: "10px 12px",
+                borderRadius: 8,
+                background: "#ECFDF5",
+                color: "#15803D",
+              }}
+            >
+              Password updated. Sign in with your new password.
             </div>
           )}
 

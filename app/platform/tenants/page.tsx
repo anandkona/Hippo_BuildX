@@ -70,28 +70,40 @@ function slugify(name: string) {
 function Field({
   label,
   required,
+  hint,
   children,
 }: {
   label: string;
   required?: boolean;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="relative pt-1">
       {children}
-      <label 
+      <label
         className="absolute text-sm duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 start-2 pointer-events-none"
-        style={{ color: "var(--ui-text-muted)" }}
+        style={{ color: "var(--ui-text-muted, #64748b)" }}
       >
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
+      {hint && (
+        <p className="text-xs mt-1 px-1" style={{ color: "var(--ui-text-muted, #64748b)" }}>
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
 
-const inputCls = "block px-3 pb-2.5 pt-4 w-full text-sm border rounded-lg appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 peer bg-transparent transition-all";
-const inputStyle = { borderColor: "var(--ui-border)", color: "var(--ui-text)" } as const;
+const inputCls =
+  "block px-3 pb-2.5 pt-4 w-full text-sm border rounded-lg appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 peer transition-all";
+const inputStyle = {
+  borderColor: "var(--ui-border, #d7e0ec)",
+  color: "var(--ui-text, #0f172a)",
+  background: "var(--ui-surface, #ffffff)",
+} as const;
 
 export default function TenantsPage() {
   const router = useRouter();
@@ -529,7 +541,7 @@ export default function TenantsPage() {
                   <Field label="Tenant Admin Name">
                     <input className={inputCls} style={inputStyle} value={form.adminName} onChange={(e) => setField("adminName", e.target.value)} placeholder=" " />
                   </Field>
-                  <Field label="Tenant Admin Email">
+                  <Field label="Tenant Admin Email" hint="Buyer gets a set-password invite email (not a temp password in mail).">
                     <input type="email" className={inputCls} style={inputStyle} value={form.adminEmail} onChange={(e) => setField("adminEmail", e.target.value)} placeholder=" " />
                   </Field>
                   <Field label="Temp Password">

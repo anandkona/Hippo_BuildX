@@ -105,6 +105,20 @@ export const tenantInvites = pgTable('tenant_invites', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** One-time password reset for platform or tenant users */
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  scope: varchar('scope', { length: 20 }).notNull(), // platform | tenant
+  userId: uuid('user_id').notNull(),
+  tenantId: uuid('tenant_id').references(() => tenants.id),
+  email: varchar('email', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }),
+  tokenHash: varchar('token_hash', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Subscription plans available on the platform */
 export const plans = pgTable('plans', {
   id: uuid('id').primaryKey().defaultRandom(),
