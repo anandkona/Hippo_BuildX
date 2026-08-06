@@ -66,3 +66,28 @@ export const auditLogs = pgTable('audit_logs', {
   details: jsonb('details'),
   ipAddress: varchar('ip_address', { length: 45 }),
 });
+
+/** Phase 2 — Property / Project structure + Planning-lite (see migrations 002_property_planning). */
+export const unitCategories = pgTable('unit_categories', {
+  ...tenantBaseColumns,
+  code: varchar('code', { length: 50 }).notNull(),
+  name: varchar('name', { length: 150 }).notNull(),
+  unitType: varchar('unit_type', { length: 50 }).notNull(),
+  description: text('description'),
+});
+
+export const projects = pgTable('projects', {
+  ...tenantBaseColumns,
+  code: varchar('code', { length: 50 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  status: varchar('status', { length: 50 }).notNull().default('draft'),
+  locationName: varchar('location_name', { length: 255 }),
+  address: text('address'),
+  city: varchar('city', { length: 100 }),
+  state: varchar('state', { length: 100 }),
+  pincode: varchar('pincode', { length: 20 }),
+  startDate: timestamp('start_date', { withTimezone: false, mode: 'string' }),
+  endDate: timestamp('end_date', { withTimezone: false, mode: 'string' }),
+  metadata: jsonb('metadata').notNull().default({}),
+});
