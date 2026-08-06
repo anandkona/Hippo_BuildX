@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FiPlus, FiServer, FiEye, FiPause, FiPlay, FiRefreshCw } from "react-icons/fi";
+import { FiPlus, FiServer, FiEye, FiEyeOff, FiPause, FiPlay, FiRefreshCw } from "react-icons/fi";
 import { Table, Tag } from "antd";
 
 interface Tenant {
@@ -47,6 +47,7 @@ const EMPTY_FORM = {
   adminName: "",
   adminEmail: "",
   adminPassword: "",
+  confirmPassword: "",
   planId: "",
 };
 
@@ -69,31 +70,27 @@ function slugify(name: string) {
 function Field({
   label,
   required,
-  hint,
   children,
 }: {
   label: string;
   required?: boolean;
-  hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <label className="block text-sm font-semibold mb-1.5">
+    <div className="relative pt-1">
+      {children}
+      <label 
+        className="absolute text-sm duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 start-2 pointer-events-none"
+        style={{ color: "var(--ui-text-muted)" }}
+      >
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      {children}
-      {hint && (
-        <p className="text-xs mt-1" style={{ color: "var(--ui-text-muted)" }}>
-          {hint}
-        </p>
-      )}
     </div>
   );
 }
 
-const inputCls = "w-full p-2.5 border rounded-lg outline-none text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent";
+const inputCls = "block px-3 pb-2.5 pt-4 w-full text-sm border rounded-lg appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 peer bg-transparent transition-all";
 const inputStyle = { borderColor: "var(--ui-border)", color: "var(--ui-text)" } as const;
 
 export default function TenantsPage() {
@@ -112,6 +109,8 @@ export default function TenantsPage() {
     adminEmail: string;
     adminPassword: string;
   } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const setField = <K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) => {
     setForm((prev) => {
@@ -167,6 +166,8 @@ export default function TenantsPage() {
     setForm(EMPTY_FORM);
     setSlugManual(false);
     setError("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setModalOpen(true);
   };
 
@@ -210,7 +211,7 @@ export default function TenantsPage() {
   };
 
   const planOptions = Array.from(new Set(tenants.map((t) => t.planName).filter(Boolean))) as string[];
-  const canSubmit = Boolean(form.name && form.slug);
+  const canSubmit = Boolean(form.name && form.slug && form.adminPassword === form.confirmPassword);
 
   const columns = [
     {
@@ -225,7 +226,7 @@ export default function TenantsPage() {
       key: "name",
       render: (text: string, record: Tenant) => (
         <button
-          className="font-semibold text-left"
+          className="font-semibold text-left cursor-pointer transition-all hover:opacity-80"
           style={{ color: "var(--ui-primary)" }}
           onClick={() => router.push(`/platform/tenants/${record.id}`)}
         >
@@ -318,7 +319,7 @@ export default function TenantsPage() {
       render: (_: any, record: Tenant) => (
         <div className="flex items-center justify-end gap-2">
           <button
-            className="p-1.5 rounded-md hover:bg-gray-100"
+            className="p-1.5 rounded-md hover:bg-gray-100 cursor-pointer transition-all active:scale-95"
             title="View"
             onClick={() => router.push(`/platform/tenants/${record.id}`)}
           >
@@ -326,7 +327,7 @@ export default function TenantsPage() {
           </button>
           {(record.status === "active" || record.status === "suspended") && (
             <button
-              className="p-1.5 rounded-md hover:bg-gray-100"
+              className="p-1.5 rounded-md hover:bg-gray-100 cursor-pointer transition-all active:scale-95"
               title={record.status === "suspended" ? "Resume" : "Suspend"}
               onClick={() => toggleStatus(record)}
             >
@@ -342,17 +343,17 @@ export default function TenantsPage() {
     <div className="flex flex-col gap-6" data-testid="platform-tenants">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold mb-1">Tenant Control Plane</h1>
+          <h1 className="text-2xl font-bold mb-1">Tenant Control Panel</h1>
           <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>
-            Platform Super Admin view. Provision isolated schemas and manage subscriptions.
+
           </p>
         </div>
         <button
-          className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md"
+          className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95"
           style={{ background: "var(--ui-primary)", color: "var(--ui-primary-foreground)" }}
           onClick={openCreate}
         >
-          <FiPlus /> Provision Tenant
+          <FiPlus /> New Tenant
         </button>
       </div>
 
@@ -366,7 +367,7 @@ export default function TenantsPage() {
         />
         <button
           onClick={fetchTenants}
-          className="px-3 py-2 border rounded-md text-sm flex items-center gap-2"
+          className="px-3 py-2 border rounded-md text-sm flex items-center gap-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm active:scale-95"
           style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface)" }}
         >
           <FiRefreshCw /> Refresh
@@ -379,14 +380,14 @@ export default function TenantsPage() {
         </div>
       )}
 
-      <div 
-        className="rounded-lg overflow-hidden border shadow-sm bg-white [&_.ant-table-body::-webkit-scrollbar]:hidden [&_.ant-table-body]:[-ms-overflow-style:none] [&_.ant-table-body]:[scrollbar-width:none]" 
+      <div
+        className="rounded-lg overflow-hidden border shadow-sm bg-white [&_.ant-table-body::-webkit-scrollbar]:hidden [&_.ant-table-body]:[-ms-overflow-style:none] [&_.ant-table-body]:[scrollbar-width:none]"
         style={{ borderColor: "var(--ui-border)" }}
       >
-        <Table 
-          columns={columns} 
-          dataSource={filtered} 
-          rowKey="id" 
+        <Table
+          columns={columns}
+          dataSource={filtered}
+          rowKey="id"
           loading={loading}
           pagination={{ defaultPageSize: 15 }}
           scroll={{ x: 'max-content', y: 'calc(60vh - 120px)' }}
@@ -401,7 +402,7 @@ export default function TenantsPage() {
             style={{ background: "var(--ui-surface)", borderColor: "var(--ui-border)" }}
           >
             <div className="px-8 pt-7 pb-4 border-b" style={{ borderColor: "var(--ui-border)" }}>
-              <h2 className="text-2xl font-bold mb-1">Provision New Tenant</h2>
+              <h2 className="text-2xl font-bold mb-1">New Tenant</h2>
             </div>
 
             <div className="px-8 py-5 overflow-y-auto flex-1 space-y-7">
@@ -411,10 +412,10 @@ export default function TenantsPage() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Company / Trade Name" required>
-                    <input className={inputCls} style={inputStyle} value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder="e.g. Skyline Construction" />
+                    <input className={inputCls} style={inputStyle} value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder=" " />
                   </Field>
-                  <Field label="Legal Entity Name" hint="Optional — as on GST / MCA">
-                    <input className={inputCls} style={inputStyle} value={form.legalName} onChange={(e) => setField("legalName", e.target.value)} placeholder="Skyline Construction Pvt Ltd" />
+                  <Field label="Legal Entity Name">
+                    <input className={inputCls} style={inputStyle} value={form.legalName} onChange={(e) => setField("legalName", e.target.value)} placeholder=" " />
                   </Field>
                   <Field label="Industry">
                     <select className={inputCls} style={inputStyle} value={form.industry} onChange={(e) => setField("industry", e.target.value)}>
@@ -435,17 +436,17 @@ export default function TenantsPage() {
                       <option value="500+">500+ employees</option>
                     </select>
                   </Field>
-                  <Field label="GSTIN" hint="15-character GST identification number">
-                    <input className={`${inputCls} font-mono uppercase`} style={inputStyle} value={form.gstin} onChange={(e) => setField("gstin", e.target.value.toUpperCase())} placeholder="27AABCU9603R1ZM" maxLength={15} />
+                  <Field label="GSTIN">
+                    <input className={`${inputCls} font-mono uppercase`} style={inputStyle} value={form.gstin} onChange={(e) => setField("gstin", e.target.value.toUpperCase())} placeholder=" " maxLength={15} />
                   </Field>
                   <Field label="PAN">
-                    <input className={`${inputCls} font-mono uppercase`} style={inputStyle} value={form.pan} onChange={(e) => setField("pan", e.target.value.toUpperCase())} placeholder="AABCU9603R" maxLength={10} />
+                    <input className={`${inputCls} font-mono uppercase`} style={inputStyle} value={form.pan} onChange={(e) => setField("pan", e.target.value.toUpperCase())} placeholder=" " maxLength={10} />
                   </Field>
-                  <Field label="CIN" hint="Optional MCA company identification">
-                    <input className={`${inputCls} font-mono uppercase`} style={inputStyle} value={form.cin} onChange={(e) => setField("cin", e.target.value.toUpperCase())} placeholder="U45200MH2015PTC123456" />
+                  <Field label="CIN">
+                    <input className={`${inputCls} font-mono uppercase`} style={inputStyle} value={form.cin} onChange={(e) => setField("cin", e.target.value.toUpperCase())} placeholder=" " />
                   </Field>
                   <Field label="Website">
-                    <input className={inputCls} style={inputStyle} value={form.website} onChange={(e) => setField("website", e.target.value)} placeholder="https://skyline.example.com" />
+                    <input className={inputCls} style={inputStyle} value={form.website} onChange={(e) => setField("website", e.target.value)} placeholder=" " />
                   </Field>
                 </div>
               </section>
@@ -457,16 +458,16 @@ export default function TenantsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <Field label="Address Line 1">
-                      <input className={inputCls} style={inputStyle} value={form.addressLine1} onChange={(e) => setField("addressLine1", e.target.value)} placeholder="Plot 12, Business Park" />
+                      <input className={inputCls} style={inputStyle} value={form.addressLine1} onChange={(e) => setField("addressLine1", e.target.value)} placeholder=" " />
                     </Field>
                   </div>
                   <div className="md:col-span-2">
                     <Field label="Address Line 2">
-                      <input className={inputCls} style={inputStyle} value={form.addressLine2} onChange={(e) => setField("addressLine2", e.target.value)} placeholder="Andheri East" />
+                      <input className={inputCls} style={inputStyle} value={form.addressLine2} onChange={(e) => setField("addressLine2", e.target.value)} placeholder=" " />
                     </Field>
                   </div>
                   <Field label="City">
-                    <input className={inputCls} style={inputStyle} value={form.city} onChange={(e) => setField("city", e.target.value)} placeholder="Mumbai" />
+                    <input className={inputCls} style={inputStyle} value={form.city} onChange={(e) => setField("city", e.target.value)} placeholder=" " />
                   </Field>
                   <Field label="State">
                     <select className={inputCls} style={inputStyle} value={form.state} onChange={(e) => setField("state", e.target.value)}>
@@ -477,10 +478,10 @@ export default function TenantsPage() {
                     </select>
                   </Field>
                   <Field label="PIN Code">
-                    <input className={inputCls} style={inputStyle} value={form.pincode} onChange={(e) => setField("pincode", e.target.value)} placeholder="400069" maxLength={10} />
+                    <input className={inputCls} style={inputStyle} value={form.pincode} onChange={(e) => setField("pincode", e.target.value)} placeholder=" " maxLength={10} />
                   </Field>
                   <Field label="Country">
-                    <input className={inputCls} style={inputStyle} value={form.country} onChange={(e) => setField("country", e.target.value)} />
+                    <input className={inputCls} style={inputStyle} value={form.country} onChange={(e) => setField("country", e.target.value)} placeholder=" " />
                   </Field>
                 </div>
               </section>
@@ -491,19 +492,19 @@ export default function TenantsPage() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Contact Name">
-                    <input className={inputCls} style={inputStyle} value={form.contactName} onChange={(e) => setField("contactName", e.target.value)} placeholder="Ravi Mehta" />
+                    <input className={inputCls} style={inputStyle} value={form.contactName} onChange={(e) => setField("contactName", e.target.value)} placeholder=" " />
                   </Field>
                   <Field label="Designation">
-                    <input className={inputCls} style={inputStyle} value={form.contactDesignation} onChange={(e) => setField("contactDesignation", e.target.value)} placeholder="Director / Admin Head" />
+                    <input className={inputCls} style={inputStyle} value={form.contactDesignation} onChange={(e) => setField("contactDesignation", e.target.value)} placeholder=" " />
                   </Field>
                   <Field label="Work Email">
-                    <input type="email" className={inputCls} style={inputStyle} value={form.contactEmail} onChange={(e) => setField("contactEmail", e.target.value)} placeholder="ravi@skyline.example.com" />
+                    <input type="email" className={inputCls} style={inputStyle} value={form.contactEmail} onChange={(e) => setField("contactEmail", e.target.value)} placeholder=" " />
                   </Field>
                   <Field label="Mobile / Phone">
-                    <input className={inputCls} style={inputStyle} value={form.contactPhone} onChange={(e) => setField("contactPhone", e.target.value)} placeholder="+91 98765 43210" />
+                    <input className={inputCls} style={inputStyle} value={form.contactPhone} onChange={(e) => setField("contactPhone", e.target.value)} placeholder=" " />
                   </Field>
                   <Field label="Billing Email">
-                    <input type="email" className={inputCls} style={inputStyle} value={form.billingEmail} onChange={(e) => setField("billingEmail", e.target.value)} placeholder="accounts@skyline.example.com" />
+                    <input type="email" className={inputCls} style={inputStyle} value={form.billingEmail} onChange={(e) => setField("billingEmail", e.target.value)} placeholder=" " />
                   </Field>
                 </div>
               </section>
@@ -514,13 +515,26 @@ export default function TenantsPage() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Tenant Admin Name">
-                    <input className={inputCls} style={inputStyle} value={form.adminName} onChange={(e) => setField("adminName", e.target.value)} placeholder="Defaults to contact / company admin" />
+                    <input className={inputCls} style={inputStyle} value={form.adminName} onChange={(e) => setField("adminName", e.target.value)} placeholder=" " />
                   </Field>
-                  <Field label="Tenant Admin Email" hint="Leave blank to use admin@{slug}.local">
-                    <input type="email" className={inputCls} style={inputStyle} value={form.adminEmail} onChange={(e) => setField("adminEmail", e.target.value)} placeholder="admin@skyline.example.com" />
+                  <Field label="Tenant Admin Email">
+                    <input type="email" className={inputCls} style={inputStyle} value={form.adminEmail} onChange={(e) => setField("adminEmail", e.target.value)} placeholder=" " />
                   </Field>
-                  <Field label="Temp Password" hint="Defaults to password123 — shown once after create">
-                    <input className={inputCls} style={inputStyle} value={form.adminPassword} onChange={(e) => setField("adminPassword", e.target.value)} placeholder="password123" />
+                  <Field label="Temp Password">
+                    <div className="relative">
+                      <input type={showPassword ? "text" : "password"} className={inputCls} style={inputStyle} value={form.adminPassword} onChange={(e) => setField("adminPassword", e.target.value)} placeholder=" " />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer transition-all active:scale-95">
+                        {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                      </button>
+                    </div>
+                  </Field>
+                  <Field label="Confirm Temp Password">
+                    <div className="relative">
+                      <input type={showConfirmPassword ? "text" : "password"} className={inputCls} style={inputStyle} value={form.confirmPassword} onChange={(e) => setField("confirmPassword", e.target.value)} placeholder=" " />
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer transition-all active:scale-95">
+                        {showConfirmPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                      </button>
+                    </div>
                   </Field>
                   <Field label="Initial Plan">
                     <select className={inputCls} style={inputStyle} value={form.planId} onChange={(e) => setField("planId", e.target.value)}>
@@ -543,16 +557,16 @@ export default function TenantsPage() {
             </div>
 
             <div className="px-8 py-4 border-t flex justify-end gap-3" style={{ borderColor: "var(--ui-border)" }}>
-              <button className="px-5 py-2.5 rounded-lg font-medium hover:bg-gray-100" onClick={() => setModalOpen(false)}>
+              <button className="px-5 py-2.5 rounded-lg font-medium hover:bg-gray-100 cursor-pointer transition-all active:scale-95" onClick={() => setModalOpen(false)}>
                 Cancel
               </button>
               <button
-                className="px-5 py-2.5 rounded-lg font-semibold shadow-md disabled:opacity-50"
+                className="px-5 py-2.5 rounded-lg font-semibold shadow-md disabled:opacity-50 cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95 disabled:hover:brightness-100 disabled:active:scale-100 disabled:cursor-not-allowed"
                 style={{ background: "var(--ui-primary)", color: "var(--ui-primary-foreground)" }}
                 onClick={handleCreate}
                 disabled={submitting || !canSubmit}
               >
-                {submitting ? "Provisioning..." : "Provision Schema"}
+                {submitting ? "Adding..." : "Add"}
               </button>
             </div>
           </div>
@@ -586,14 +600,14 @@ export default function TenantsPage() {
             </dl>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded-lg border text-sm"
+                className="px-4 py-2 rounded-lg border text-sm cursor-pointer transition-all hover:bg-gray-50 active:scale-95"
                 style={{ borderColor: "var(--ui-border)" }}
                 onClick={() => window.open(`/login?workspace=${credentials.workspace}`, "_blank")}
               >
                 Open login
               </button>
               <button
-                className="px-4 py-2 rounded-lg font-semibold text-sm"
+                className="px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95"
                 style={{ background: "var(--ui-primary)", color: "#fff" }}
                 onClick={() => setCredentials(null)}
               >

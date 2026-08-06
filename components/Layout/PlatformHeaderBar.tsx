@@ -83,7 +83,7 @@ export default function PlatformHeaderBar() {
           placement="bottomRight"
           trigger={["click"]}
         >
-          <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+          <div className="flex items-center gap-2 cursor-pointer">
             <span className="hidden md:block text-sm font-medium" style={{ color: "var(--ui-text)" }}>
               Platform Owner
             </span>

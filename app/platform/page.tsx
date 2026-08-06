@@ -62,7 +62,7 @@ export default function PlatformDashboardPage() {
     <div className="flex flex-col gap-6" data-testid="platform-dashboard">
       <div>
         <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--ui-text)" }}>Platform Dashboard</h1>
-        <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>Overview of tenants, revenue, and system health</p>
+
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

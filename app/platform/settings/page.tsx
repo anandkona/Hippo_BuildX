@@ -58,11 +58,11 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1">System Settings</h1>
-          <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>Configure platform-wide preferences</p>
+
         </div>
         <div className="flex gap-2">
-          <button onClick={load} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }}><FiRefreshCw /> Refresh</button>
-          <button onClick={save} disabled={saving} className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md" style={{ background: "var(--ui-primary)", color: "#fff" }}>
+          <button onClick={load} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm active:scale-95" style={{ borderColor: "var(--ui-border)" }}><FiRefreshCw /> Refresh</button>
+          <button onClick={save} disabled={saving} className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95 disabled:hover:brightness-100 disabled:active:scale-100 disabled:cursor-not-allowed" style={{ background: "var(--ui-primary)", color: "#fff" }}>
             <FiSave /> {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>

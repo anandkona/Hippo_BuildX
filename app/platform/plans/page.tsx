@@ -108,13 +108,13 @@ export default function PlansPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1">Subscription Management</h1>
-          <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>Manage subscription tiers for tenant companies</p>
+
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchPlans} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }}>
+          <button onClick={fetchPlans} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm active:scale-95" style={{ borderColor: "var(--ui-border)" }}>
             <FiRefreshCw /> Refresh
           </button>
-          <button onClick={openCreate} className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md" style={{ background: "var(--ui-primary)", color: "#fff" }}>
+          <button onClick={openCreate} className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95" style={{ background: "var(--ui-primary)", color: "#fff" }}>
             <FiPlus /> Add New Plan
           </button>
         </div>
@@ -161,7 +161,7 @@ export default function PlansPage() {
                     </li>
                   ))}
                 </ul>
-                <button onClick={() => openEdit(plan)} className="w-full py-2.5 border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50" style={{ borderColor: "var(--ui-border)" }}>
+                <button onClick={() => openEdit(plan)} className="w-full py-2.5 border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50 cursor-pointer transition-all active:scale-95" style={{ borderColor: "var(--ui-border)" }}>
                   <FiEdit2 /> Edit Plan
                 </button>
               </div>
@@ -201,9 +201,9 @@ export default function PlansPage() {
               <Field label="Support Level" value={form.supportLevel || ""} onChange={(v) => setForm({ ...form, supportLevel: v })} />
             </div>
             {error && <div className="text-sm mt-3" style={{ color: "var(--ui-danger)" }}>{error}</div>}
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t" style={{ borderColor: "var(--ui-border)" }}>
-              <button className="px-4 py-2 rounded-lg hover:bg-gray-100" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button disabled={submitting} className="px-4 py-2 rounded-lg font-semibold" style={{ background: "var(--ui-primary)", color: "#fff" }} onClick={save}>
+            <div className="flex justify-end gap-3 mt-6">
+              <button className="px-4 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-all active:scale-95" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button disabled={submitting} className="px-4 py-2 rounded-lg font-semibold cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95 disabled:hover:brightness-100 disabled:active:scale-100 disabled:cursor-not-allowed" style={{ background: "var(--ui-primary)", color: "#fff" }} onClick={save}>
                 {submitting ? "Saving..." : editing ? "Save Changes" : "Create Plan"}
               </button>
             </div>

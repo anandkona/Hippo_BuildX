@@ -69,8 +69,8 @@ export default function SubscriptionsPage() {
           <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>Active subscriptions across all tenants</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={load} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }}><FiRefreshCw /> Refresh</button>
-          <button onClick={() => { setForm({ status: "active" }); setModalOpen(true); }} className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md" style={{ background: "var(--ui-primary)", color: "#fff" }}>
+          <button onClick={load} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm active:scale-95" style={{ borderColor: "var(--ui-border)" }}><FiRefreshCw /> Refresh</button>
+          <button onClick={() => { setForm({ status: "active" }); setModalOpen(true); }} className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95" style={{ background: "var(--ui-primary)", color: "#fff" }}>
             <FiPlus /> Assign Plan
           </button>
         </div>
@@ -136,8 +136,8 @@ export default function SubscriptionsPage() {
               {error && <div className="text-sm" style={{ color: "var(--ui-danger)" }}>{error}</div>}
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button className="px-4 py-2 rounded-lg hover:bg-gray-100" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button disabled={submitting || !form.tenantId || !form.planId} className="px-4 py-2 rounded-lg font-semibold" style={{ background: "var(--ui-primary)", color: "#fff" }} onClick={assign}>
+              <button className="px-4 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-all active:scale-95" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button disabled={submitting || !form.tenantId || !form.planId} className="px-4 py-2 rounded-lg font-semibold cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95 disabled:hover:brightness-100 disabled:active:scale-100 disabled:cursor-not-allowed" style={{ background: "var(--ui-primary)", color: "#fff" }} onClick={assign}>
                 {submitting ? "Saving..." : "Assign"}
               </button>
             </div>

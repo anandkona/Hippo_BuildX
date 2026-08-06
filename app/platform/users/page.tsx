@@ -72,13 +72,13 @@ export default function PlatformUsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1">Users Management</h1>
-          <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>Platform staff accounts and roles</p>
+
         </div>
         <div className="flex gap-2">
-          <button onClick={load} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }}><FiRefreshCw /> Refresh</button>
+          <button onClick={load} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm active:scale-95" style={{ borderColor: "var(--ui-border)" }}><FiRefreshCw /> Refresh</button>
           <button
             onClick={() => { setEditing(null); setForm({ role: "platform_admin", isActive: true }); setModalOpen(true); }}
-            className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md"
+            className="px-4 py-2.5 rounded-md font-semibold flex items-center gap-2 shadow-md cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95"
             style={{ background: "var(--ui-primary)", color: "#fff" }}
           >
             <FiPlus /> Add User
@@ -113,7 +113,7 @@ export default function PlatformUsersPage() {
                 </td>
                 <td className="px-5 py-4" style={{ color: "var(--ui-text-muted)" }}>{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString("en-IN") : "—"}</td>
                 <td className="px-5 py-4 text-right">
-                  <button className="p-1.5 rounded-md hover:bg-gray-100" onClick={() => { setEditing(u); setForm({ name: u.name, email: u.email, role: u.role, isActive: u.isActive }); setModalOpen(true); }}>
+                  <button className="p-1.5 rounded-md hover:bg-gray-100 cursor-pointer transition-all active:scale-95" onClick={() => { setEditing(u); setForm({ name: u.name, email: u.email, role: u.role, isActive: u.isActive }); setModalOpen(true); }}>
                     <FiEdit2 />
                   </button>
                 </td>
@@ -140,8 +140,8 @@ export default function PlatformUsersPage() {
               {error && <div className="text-sm" style={{ color: "var(--ui-danger)" }}>{error}</div>}
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button className="px-4 py-2 rounded-lg hover:bg-gray-100" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button disabled={submitting} className="px-4 py-2 rounded-lg font-semibold" style={{ background: "var(--ui-primary)", color: "#fff" }} onClick={save}>
+              <button className="px-4 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-all active:scale-95" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button disabled={submitting} className="px-4 py-2 rounded-lg font-semibold cursor-pointer transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] active:scale-95 disabled:hover:brightness-100 disabled:active:scale-100 disabled:cursor-not-allowed" style={{ background: "var(--ui-primary)", color: "#fff" }} onClick={save}>
                 {submitting ? "Saving..." : editing ? "Save" : "Create"}
               </button>
             </div>

@@ -27,9 +27,9 @@ export default function AuditLogsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1">Audit Logs</h1>
-          <p className="text-sm" style={{ color: "var(--ui-text-muted)" }}>Chronological record of platform activity</p>
+
         </div>
-        <button onClick={() => load(q)} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2" style={{ borderColor: "var(--ui-border)" }}>
+        <button onClick={() => load(q)} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2 cursor-pointer transition-all hover:bg-gray-50 hover:shadow-sm active:scale-95" style={{ borderColor: "var(--ui-border)" }}>
           <FiRefreshCw /> Refresh
         </button>
       </div>
@@ -46,7 +46,7 @@ export default function AuditLogsPage() {
             style={{ borderColor: "var(--ui-border)", background: "var(--ui-surface)" }}
           />
         </div>
-        <button onClick={() => load(q)} className="px-4 py-2 rounded-md font-semibold text-sm" style={{ background: "var(--ui-primary)", color: "#fff" }}>
+        <button onClick={() => load(q)} className="px-4 py-2 rounded-md font-semibold text-sm cursor-pointer" style={{ background: "var(--ui-primary)", color: "#fff" }}>
           Search
         </button>
       </div>
