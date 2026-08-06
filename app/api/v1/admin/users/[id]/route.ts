@@ -1,25 +1,16 @@
 import { NextResponse } from 'next/server';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 import { createTenantSql, getSql } from '@/lib/db/client';
-import { extractContextFromHeaders } from '@/lib/tenant-context';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-function requireAdmin(headers: Headers) {
-  const context = extractContextFromHeaders(headers);
-  if (!context.schemaName || !context.roles?.includes('tenant_admin')) {
-    return null;
-  }
-  return context;
-}
-
 export async function GET(_req: Request, { params }: RouteContext) {
   try {
-    const context = requireAdmin(_req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(_req, { permission: 'users.read' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const { id } = await params;
     const sql = createTenantSql(context.schemaName);
@@ -48,14 +39,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
   }
 }
 
-export async function PUT(req: Request, { params }: RouteContext) {
-  try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { id } = await params;
+export const PUT = withAudit(
+  { permission: 'users.update', resource: 'user', action: 'Updated User' },
+  async ({ req, context, routeCtx, audit }) => {
+    const { id } = await routeCtx!.params!;
     const body = await req.json();
     const { name, email, status, roleIds } = body as {
       name?: string;
@@ -117,21 +104,15 @@ export async function PUT(req: Request, { params }: RouteContext) {
       }
     });
 
+    audit({ resourceId: id });
     return NextResponse.json({ data: { message: 'User updated' } });
-  } catch (error) {
-    console.error('Update user error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);
 
-export async function DELETE(_req: Request, { params }: RouteContext) {
-  try {
-    const context = requireAdmin(_req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { id } = await params;
+export const DELETE = withAudit(
+  { permission: 'users.delete', resource: 'user', action: 'Deleted User' },
+  async ({ context, routeCtx, audit }) => {
+    const { id } = await routeCtx!.params!;
     const sql = createTenantSql(context.schemaName);
 
     const [existing] = await sql`
@@ -147,9 +128,7 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
       WHERE id = ${id}
     `;
 
+    audit({ resourceId: id });
     return NextResponse.json({ data: { message: 'User deleted' } });
-  } catch (error) {
-    console.error('Delete user error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

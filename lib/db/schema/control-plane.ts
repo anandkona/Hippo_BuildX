@@ -91,6 +91,20 @@ export const platformSessions = pgTable('platform_sessions', {
   userAgent: varchar('user_agent', { length: 255 }),
 });
 
+/** One-time invite for tenant admins to set their own password */
+export const tenantInvites = pgTable('tenant_invites', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  email: varchar('email', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }),
+  tokenHash: varchar('token_hash', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Subscription plans available on the platform */
 export const plans = pgTable('plans', {
   id: uuid('id').primaryKey().defaultRandom(),

@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
-import { extractContextFromHeaders } from '@/lib/tenant-context';
 
 interface PaginationMeta {
   total: number;
   page: number;
   pageSize: number;
-}
-
-function requireAdmin(headers: Headers) {
-  const context = extractContextFromHeaders(headers);
-  if (!context.schemaName || !context.roles?.includes('tenant_admin')) {
-    return null;
-  }
-  return context;
 }
 
 function toInt(value: string | null, fallback: number): number {
@@ -24,10 +16,9 @@ function toInt(value: string | null, fallback: number): number {
 
 export async function GET(req: Request) {
   try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(req, { permission: 'roles.read' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const url = new URL(req.url);
     const page = toInt(url.searchParams.get('page'), 1);
@@ -60,13 +51,9 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
+export const POST = withAudit(
+  { permission: 'roles.create', resource: 'role', action: 'Created Role' },
+  async ({ req, context, audit }) => {
     const body = await req.json();
     const { name, description, permissions } = body as {
       name?: string;
@@ -102,9 +89,7 @@ export async function POST(req: Request) {
       RETURNING id, name, description, permissions, is_system, created_at
     `;
 
+    audit({ resourceId: role.id, details: { name } });
     return NextResponse.json({ data: role }, { status: 201 });
-  } catch (error) {
-    console.error('Create role error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { extractContextFromHeaders, type TenantContext } from '@/lib/tenant-context';
-import { hasPermission } from '@/lib/rbac/permissions';
+import { evaluateScope } from '@/lib/rbac/scope';
 
 export type GuardResult = { ok: true; context: TenantContext } | { ok: false; response: NextResponse };
 
@@ -48,29 +48,27 @@ export function requireRole(role: string) {
 }
 
 /**
- * Guard that additionally verifies the caller's permissions array includes
- * the specified `module.action` permission.
+ * Guard that verifies the caller's permissions include `module.action`
+ * (or tenant_admin / `*`). Does not require tenant_admin alone.
  */
 export function requirePermission(module: string, action: string) {
   const permission = `${module}.${action}`;
-  const baseGuard = createGuard(['tenant_admin']);
 
-  return async function permissionGuard(
-    request: Request
-  ): Promise<GuardResult> {
-    const base = await baseGuard(request);
-    if (!base.ok) return base;
+  return async function permissionGuard(request: Request): Promise<GuardResult> {
+    const context = extractContextFromHeaders(request.headers);
 
-    const context = base.context;
-    const userPermissions = context.permissions ?? [];
-
-    if (!hasPermission(userPermissions, permission)) {
+    if (!context.schemaName || !context.tenantId || context.tenantId === 'PLATFORM') {
       return {
         ok: false,
-        response: NextResponse.json(
-          { error: `Forbidden: Missing permission ${permission}` },
-          { status: 403 }
-        ),
+        response: NextResponse.json({ error: 'Forbidden: Missing tenant context' }, { status: 403 }),
+      };
+    }
+
+    const result = evaluateScope(context, { permission, module });
+    if (!result.allowed) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: result.reason || 'Forbidden' }, { status: 403 }),
       };
     }
 

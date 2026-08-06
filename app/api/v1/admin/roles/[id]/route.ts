@@ -1,25 +1,16 @@
 import { NextResponse } from 'next/server';
+import { requireTenantApi, withAudit } from '@/lib/api/tenant-admin';
 import { createTenantSql } from '@/lib/db/client';
-import { extractContextFromHeaders } from '@/lib/tenant-context';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-function requireAdmin(headers: Headers) {
-  const context = extractContextFromHeaders(headers);
-  if (!context.schemaName || !context.roles?.includes('tenant_admin')) {
-    return null;
-  }
-  return context;
-}
-
 export async function GET(_req: Request, { params }: RouteContext) {
   try {
-    const context = requireAdmin(_req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireTenantApi(_req, { permission: 'roles.read' });
+    if (!auth.ok) return auth.response;
+    const context = auth.context;
 
     const { id } = await params;
     const sql = createTenantSql(context.schemaName);
@@ -53,14 +44,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
   }
 }
 
-export async function PUT(req: Request, { params }: RouteContext) {
-  try {
-    const context = requireAdmin(req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { id } = await params;
+export const PUT = withAudit(
+  { permission: 'roles.update', resource: 'role', action: 'Updated Role' },
+  async ({ req, context, routeCtx, audit }) => {
+    const { id } = await routeCtx!.params!;
     const body = await req.json();
     const { name, description, permissions } = body as {
       name?: string;
@@ -102,21 +89,18 @@ export async function PUT(req: Request, { params }: RouteContext) {
       );
     }
 
+    audit({
+      resourceId: id,
+      details: { name, description, permissions },
+    });
     return NextResponse.json({ data: { message: 'Role updated' } });
-  } catch (error) {
-    console.error('Update role error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);
 
-export async function DELETE(_req: Request, { params }: RouteContext) {
-  try {
-    const context = requireAdmin(_req.headers);
-    if (!context) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { id } = await params;
+export const DELETE = withAudit(
+  { permission: 'roles.delete', resource: 'role', action: 'Deleted Role' },
+  async ({ context, routeCtx, audit }) => {
+    const { id } = await routeCtx!.params!;
     const sql = createTenantSql(context.schemaName);
 
     const [existing] = await sql`
@@ -127,10 +111,7 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
     }
 
     if (existing.is_system) {
-      return NextResponse.json(
-        { error: 'Cannot delete system role' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Cannot delete system role' }, { status: 400 });
     }
 
     await sql`
@@ -139,9 +120,7 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
       WHERE id = ${id}
     `;
 
+    audit({ resourceId: id });
     return NextResponse.json({ data: { message: 'Role deleted' } });
-  } catch (error) {
-    console.error('Delete role error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+);
