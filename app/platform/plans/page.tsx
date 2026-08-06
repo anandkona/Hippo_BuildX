@@ -31,6 +31,7 @@ export default function PlansPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState<any>({});
+  const [snackbar, setSnackbar] = useState({ show: false, message: "" });
 
   const fetchPlans = useCallback(async () => {
     setLoading(true);
@@ -77,11 +78,18 @@ export default function PlansPage() {
     setSubmitting(true);
     setError("");
     try {
+      const payload = { ...form };
+      if (!editing && !payload.name) {
+        payload.name = (payload.displayName || "plan")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+      }
       if (editing) {
         const res = await fetch(`/api/v1/platform/plans/${editing.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Update failed");
@@ -89,13 +97,15 @@ export default function PlansPage() {
         const res = await fetch("/api/v1/platform/plans", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Create failed");
       }
       setModalOpen(false);
       fetchPlans();
+      setSnackbar({ show: true, message: editing ? "Plan updated successfully!" : "Plan created successfully!" });
+      setTimeout(() => setSnackbar({ show: false, message: "" }), 2000);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -130,7 +140,6 @@ export default function PlansPage() {
               `${plan.maxUsers >= 9999 ? "Unlimited" : plan.maxUsers} Users`,
               `${plan.maxProjects >= 9999 ? "Unlimited" : plan.maxProjects} Projects`,
               `${plan.maxStorageGb} GB Storage`,
-              `${plan.maxApiCalls.toLocaleString("en-IN")} API Calls`,
               `${plan.supportLevel} Support`,
             ];
             return (
@@ -173,11 +182,9 @@ export default function PlansPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4">
           <div className="w-full max-w-lg rounded-xl border p-8 shadow-2xl" style={{ background: "var(--ui-surface)", borderColor: "var(--ui-border)" }}>
-            <h2 className="text-xl font-bold mb-4">{editing ? "Edit Plan" : "Add New Plan"}</h2>
+            <h2 className="text-xl font-bold mb-4 text-center">{editing ? "Edit Plan" : "Add New Plan"}</h2>
             <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
-              {!editing && (
-                <Field label="Plan Key" value={form.name || ""} onChange={(v) => setForm({ ...form, name: v })} placeholder="professional" />
-              )}
+
               <Field label="Display Name" value={form.displayName || ""} onChange={(v) => setForm({ ...form, displayName: v })} />
               <Field label="Description" value={form.description || ""} onChange={(v) => setForm({ ...form, description: v })} />
               <div className="grid grid-cols-2 gap-3">
@@ -186,7 +193,10 @@ export default function PlansPage() {
                   <label className="block text-sm font-semibold mb-1.5">Billing Cycle</label>
                   <select className="w-full p-2.5 border rounded-lg outline-none text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent" style={{ borderColor: "var(--ui-border)", color: "var(--ui-text)" }} value={form.billingCycle || "monthly"} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}>
                     <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="half-yearly">Half-Yearly</option>
                     <option value="yearly">Yearly</option>
+                    <option value="full-time">Full-Time</option>
                   </select>
                 </div>
               </div>
@@ -194,9 +204,8 @@ export default function PlansPage() {
                 <Field label="Max Users" type="number" value={String(form.maxUsers ?? 0)} onChange={(v) => setForm({ ...form, maxUsers: Number(v) })} />
                 <Field label="Max Projects" type="number" value={String(form.maxProjects ?? 0)} onChange={(v) => setForm({ ...form, maxProjects: Number(v) })} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Field label="Max Storage GB" type="number" value={String(form.maxStorageGb ?? 0)} onChange={(v) => setForm({ ...form, maxStorageGb: Number(v) })} />
-                <Field label="Max API Calls" type="number" value={String(form.maxApiCalls ?? 0)} onChange={(v) => setForm({ ...form, maxApiCalls: Number(v) })} />
               </div>
               <Field label="Support Level" value={form.supportLevel || ""} onChange={(v) => setForm({ ...form, supportLevel: v })} />
             </div>
@@ -210,6 +219,16 @@ export default function PlansPage() {
           </div>
         </div>
       )}
+
+      {/* Snackbar */}
+      <div 
+        className={`fixed bottom-4 right-4 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform ${snackbar.show ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none"}`}
+        style={{ zIndex: 1000 }}
+      >
+        <div className="flex items-center gap-2 font-medium">
+          <FiCheck /> {snackbar.message}
+        </div>
+      </div>
     </div>
   );
 }

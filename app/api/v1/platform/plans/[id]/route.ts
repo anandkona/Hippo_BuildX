@@ -96,24 +96,3 @@ export async function DELETE(req: Request, { params }: RouteContext) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: RouteContext) {
-  try {
-    const context = extractContextFromHeaders(_req.headers);
-    if (!context.roles?.includes('super_admin')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { id } = await params;
-    const db = getDb();
-
-    const [deleted] = await db.update(plans)
-      .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(plans.id, id))
-      .returning();
-
-    if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json({ message: 'Plan deactivated' });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete plan' }, { status: 500 });
-  }
-}

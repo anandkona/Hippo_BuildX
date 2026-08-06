@@ -25,7 +25,6 @@ interface Tenant {
 
 const EMPTY_FORM = {
   name: "",
-  legalName: "",
   slug: "",
   industry: "Construction",
   companySize: "",
@@ -437,9 +436,6 @@ export default function TenantsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Company / Trade Name" required>
                     <input className={inputCls} style={inputStyle} value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder=" " />
-                  </Field>
-                  <Field label="Legal Entity Name">
-                    <input className={inputCls} style={inputStyle} value={form.legalName} onChange={(e) => setField("legalName", e.target.value)} placeholder=" " />
                   </Field>
                   <Field label="Industry">
                     <select className={inputCls} style={inputStyle} value={form.industry} onChange={(e) => setField("industry", e.target.value)}>
