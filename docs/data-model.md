@@ -1,6 +1,6 @@
-# Data model (Phase 0 / Phase 1)
+# Data model (Phase 0 / Phase 1 / Phase 2)
 
-Canonical ER overview for the control plane (`public`) and tenant identity schema. Kept current with provisioning + migration runner (`lib/tenants/migrations.ts`).
+Canonical ER overview for the control plane (`public`) and tenant schemas. Kept current with provisioning + migration runner (`lib/tenants/migrations.ts`).
 
 ## Control plane (`public`)
 
@@ -32,7 +32,7 @@ erDiagram
   platform_users {
     uuid id PK
     varchar email UK
-    varchar password_hash
+    text password_hash
     varchar role
     boolean is_active
   }
@@ -78,11 +78,8 @@ erDiagram
 Notes:
 - Tenant lifecycle statuses: `provisioning` | `active` | `failed` | `suspended`.
 - `plans` / `subscriptions` / platform kill-switches exist in schema; commercial ops remain Phase 12 product scope.
-- Refresh for platform admins is stored in `platform_sessions` (hashed tokens).
 
-## Tenant schema (`tenant_<slug>`) — identity core
-
-Applied by migration `001_identity_core`.
+## Tenant schema — identity core (`001_identity_core`)
 
 ```mermaid
 erDiagram
@@ -154,13 +151,178 @@ erDiagram
   }
 ```
 
+## Tenant schema — Property + Planning-lite (`002_property_planning`)
+
+PRD hierarchy: **Company (tenant) → Project → Block → Tower → Floor → Unit**.
+
+```mermaid
+erDiagram
+  projects ||--o{ blocks : contains
+  blocks ||--o{ towers : contains
+  towers ||--o{ floors : contains
+  floors ||--o{ units : contains
+  unit_categories ||--o{ units : classifies
+  projects ||--o{ units : owns
+  units ||--o{ unit_status_history : audits
+  projects ||--o{ milestones : plans
+  milestones ||--o{ tasks : groups
+  projects ||--o{ tasks : owns
+  tasks ||--o{ task_dependencies : predecessor
+  tasks ||--o{ task_dependencies : successor
+  projects ||--o{ boq_items : costs
+  projects ||--o{ drawings : register
+  projects ||--o{ rfis : register
+  projects ||--o{ issues : tracks
+  projects ||--o{ approvals : gates
+  projects ||--o{ project_budgets : budgets
+
+  projects {
+    uuid id PK
+    varchar code UK
+    varchar name
+    varchar status
+  }
+
+  blocks {
+    uuid id PK
+    uuid project_id FK
+    varchar code
+    varchar name
+  }
+
+  towers {
+    uuid id PK
+    uuid project_id FK
+    uuid block_id FK
+    varchar code
+    varchar name
+  }
+
+  floors {
+    uuid id PK
+    uuid project_id FK
+    uuid tower_id FK
+    integer level_number
+  }
+
+  unit_categories {
+    uuid id PK
+    varchar code UK
+    varchar unit_type
+  }
+
+  units {
+    uuid id PK
+    uuid project_id FK
+    uuid floor_id FK
+    uuid category_id FK
+    varchar code
+    varchar unit_type
+    varchar status
+    uuid booking_id
+    uuid customer_id
+    uuid payment_plan_id
+  }
+
+  unit_status_history {
+    uuid id PK
+    uuid unit_id FK
+    varchar from_status
+    varchar to_status
+  }
+
+  milestones {
+    uuid id PK
+    uuid project_id FK
+    varchar name
+    varchar status
+  }
+
+  tasks {
+    uuid id PK
+    uuid project_id FK
+    uuid milestone_id FK
+    varchar name
+    date planned_start
+    date planned_end
+    integer progress_pct
+  }
+
+  task_dependencies {
+    uuid id PK
+    uuid predecessor_task_id FK
+    uuid successor_task_id FK
+    varchar dependency_type
+  }
+
+  boq_items {
+    uuid id PK
+    uuid project_id FK
+    varchar code
+    numeric quantity
+    numeric unit_rate
+    numeric amount
+  }
+
+  drawings {
+    uuid id PK
+    uuid project_id FK
+    varchar drawing_no
+    integer version
+    boolean is_current
+  }
+
+  rfis {
+    uuid id PK
+    uuid project_id FK
+    varchar rfi_no
+    integer version
+    boolean is_current
+  }
+
+  issues {
+    uuid id PK
+    uuid project_id FK
+    varchar title
+    varchar severity
+    varchar status
+  }
+
+  approvals {
+    uuid id PK
+    uuid project_id FK
+    varchar entity_type
+    uuid entity_id
+    varchar status
+  }
+
+  project_budgets {
+    uuid id PK
+    uuid project_id FK
+    varchar category
+    numeric planned_amount
+  }
+```
+
+### Unit status (PRD §8.3)
+
+`available` → `reserved` → `booked` → `cancelled` | `completed` → `delivered`  
+Every change writes `unit_status_history`.
+
+### Planning notes (PRD §8.4)
+
+- Task dependencies are **finish-to-start (`FS`)** in v1.
+- Gantt API returns tasks + dependencies; **critical-path (CPM) is P1**.
+- Drawings and RFIs are versioned (`version`, `supersedes_id`, `is_current`).
+- Unit link columns `booking_id` / `customer_id` / `payment_plan_id` are reserved for Phases 3–5.
+
 ## Four-axis AuthZ (runtime)
 
-Evaluated in `lib/rbac/scope.ts` and enforced by `requireTenantApi`:
+Evaluated in `lib/rbac/scope.ts` and enforced by `requireTenantApi` / `requireProjectApi`:
 
-1. **Role / permission** — seeded matrix + JWT `permissions`
-2. **Module** — tenant `tenant_settings.feature_flags` (`false` disables)
-3. **Project** — JWT `projectIds` from `user_roles.project_id` (empty ⇒ unrestricted)
-4. **Location** — JWT `locationIds` from `user_roles.location_id` (empty ⇒ unrestricted)
+1. **Role / permission** — seeded matrix + JWT `permissions` (`projects.*`)
+2. **Module** — tenant `feature_flags.projects === false` denies
+3. **Project** — JWT `projectIds` (empty ⇒ unrestricted)
+4. **Location** — JWT `locationIds` (empty ⇒ unrestricted)
 
 Active-tenant checks run in API gates (`assertTenantActive`) because Edge middleware cannot query Postgres.

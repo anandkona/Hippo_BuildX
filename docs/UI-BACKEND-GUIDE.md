@@ -1,6 +1,6 @@
-# UI developer guide — BuildX backend (Phase 0 / 1)
+# UI developer guide — BuildX backend (Phase 0 / 1 / 2)
 
-This guide is for frontend engineers integrating against the current Next.js API on branch `dev2`.
+This guide is for frontend engineers integrating against the current Next.js API.
 
 ## Quick start
 
@@ -132,6 +132,29 @@ Requires tenant JWT; gated by active tenant + four-axis RBAC (`tenant_admin` or 
 
 Mutations are auto-audited via `withAudit` — no extra client work.
 
+### Projects — Property + Planning-lite (`/api/v1/projects/*`) — Phase 2
+
+Requires tenant JWT with `projects.read|create|update|delete` (or `tenant_admin` / `*`).  
+When the JWT has non-empty `projectIds`, resource routes enforce that project scope.
+
+| Area | Methods |
+|------|---------|
+| Projects | `GET/POST /api/v1/projects`, `GET/PATCH/DELETE /api/v1/projects/{projectId}` |
+| Hierarchy tree | `GET /api/v1/projects/{projectId}/tree` |
+| Bulk generate | `POST /api/v1/projects/{projectId}/generate` — body `{ block?, towers: [{ name, floorCount, unitsPerFloor, unitType?, categoryId?, unitPrefix? }] }` |
+| Blocks / towers / floors | `GET/POST .../blocks`, `.../towers`, `.../floors` |
+| Units | `GET/POST .../units`, `GET .../units/{unitId}`, `POST .../units/{unitId}/status` `{ toStatus, reason? }` |
+| Unit categories | `GET/POST /api/v1/unit-categories` |
+| Milestones / tasks | `GET/POST .../milestones`, `PATCH/DELETE .../milestones/{id}`, `GET/POST .../tasks`, `PATCH/DELETE .../tasks/{id}` |
+| Dependencies / Gantt | `GET/POST .../dependencies` (FS only), `GET .../gantt` |
+| BOQ | `GET/POST .../boq`, `DELETE .../boq/{itemId}` |
+| Drawings / RFIs | `GET/POST .../drawings`, `GET .../drawings/{id}`, `GET/POST .../rfis`, `GET/PATCH .../rfis/{id}` (versioned) |
+| Issues / approvals / budget | `GET/POST .../issues`, `PATCH .../issues/{id}`, `GET/POST .../approvals`, `GET/POST .../budget` |
+
+**Unit statuses:** `available`, `reserved`, `booked`, `cancelled`, `completed`, `delivered` (each change audited).
+
+**Workflow (PRD):** create project → bulk-generate Block→Tower→Floor→Unit tree → plan milestones/tasks with FS deps (Gantt) → maintain BOQ / drawings / RFIs / issues / budget. CRM booking + construction progress come in later phases; units already expose `booking_id`, `customer_id`, `payment_plan_id` placeholders.
+
 ### Health
 
 - `GET /api/v1/health`
@@ -163,6 +186,7 @@ Body shape is usually `{ "error": "..." }`.
 | `/admin/roles` | roles CRUD |
 | `/admin/settings` | branding + feature flags blob |
 | `/admin/channels` | channel upsert |
+| Projects (Phase 2) | `/api/v1/projects`, tree, generate, units, gantt, boq, drawings, rfis |
 
 ## Local backend checklist for UI
 
