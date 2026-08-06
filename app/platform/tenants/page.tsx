@@ -79,13 +79,13 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-semibold mb-1.5">
+      <label className="block text-sm font-semibold mb-1.5" style={{ color: "var(--ui-text, #0f172a)" }}>
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}
       {hint && (
-        <p className="text-xs mt-1" style={{ color: "var(--ui-text-muted)" }}>
+        <p className="text-xs mt-1" style={{ color: "var(--ui-text-muted, #64748b)" }}>
           {hint}
         </p>
       )}
@@ -93,8 +93,13 @@ function Field({
   );
 }
 
-const inputCls = "w-full p-2.5 border rounded-lg outline-none text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all bg-transparent";
-const inputStyle = { borderColor: "var(--ui-border)", color: "var(--ui-text)" } as const;
+const inputCls =
+  "w-full p-2.5 border rounded-lg outline-none text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all";
+const inputStyle = {
+  borderColor: "var(--ui-border, #d7e0ec)",
+  color: "var(--ui-text, #0f172a)",
+  background: "var(--ui-surface, #ffffff)",
+} as const;
 
 export default function TenantsPage() {
   const router = useRouter();

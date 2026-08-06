@@ -136,7 +136,8 @@ export async function sendTenantAdminInvite(opts: {
     name: opts.adminName,
   });
 
-  const inviteUrl = `${appBaseUrl(opts.req)}/invite?token=${token}`;
+  const base = appBaseUrl(opts.req);
+  const inviteUrl = `${base}/invite?token=${token}`;
   const mail = buildTenantInviteEmail({
     companyName: opts.companyName,
     workspace: opts.workspace,
@@ -144,6 +145,7 @@ export async function sendTenantAdminInvite(opts: {
     adminEmail: to,
     inviteUrl,
     expiresHours: INVITE_TTL_HOURS,
+    appUrl: base,
   });
 
   const result = await sendBrevoEmail({
