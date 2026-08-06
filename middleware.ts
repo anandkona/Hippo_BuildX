@@ -11,11 +11,20 @@ const PUBLIC_API_ROUTES = [
   '/api/v1/auth/refresh',
   '/api/v1/auth/invite',
   '/api/v1/auth/invite/accept',
+  '/api/v1/auth/forgot-password',
+  '/api/v1/auth/reset-password',
   '/api/v1/platform/auth/login',
 ];
 
 // Public page routes (no auth required)
-const PUBLIC_PAGE_ROUTES = ['/login', '/platform/login', '/api-docs', '/invite'];
+const PUBLIC_PAGE_ROUTES = [
+  '/login',
+  '/platform/login',
+  '/api-docs',
+  '/invite',
+  '/forgot-password',
+  '/reset-password',
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

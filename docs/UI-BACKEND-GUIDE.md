@@ -36,8 +36,13 @@ Seeded credentials (local / demo):
 | Tenant legacy | `POST /api/v1/auth/login` | `{ tenantSlug, email, password }` |
 | Refresh | `POST /api/v1/auth/refresh` | cookies or `{ refreshToken, scope? }` |
 | Logout | `POST /api/v1/auth/logout` | cookies |
+| Forgot password | `POST /api/v1/auth/forgot-password` | `{ email }` — always generic success |
+| Reset preview | `GET /api/v1/auth/reset-password?token=` | public |
+| Reset password | `POST /api/v1/auth/reset-password` | `{ token, password }` → `/login?reset=1` |
 
 Central session response includes `scope` (`platform` \| `tenant`) and `redirectTo`.
+
+UI pages: `/login` (includes **Forgot password?**), `/forgot-password`, `/reset-password?token=...`.
 
 ```ts
 const res = await fetch('/api/v1/auth/session', {
@@ -87,6 +92,14 @@ UI should:
 3. Always surface `invite.inviteUrl` so platform operators can share it if email is delayed/spam-foldered.
 4. Accept flow: `GET /api/v1/auth/invite?token=...` → `POST /api/v1/auth/invite/accept` with `{ token, password, name? }` → cookies set → `/dashboard`.
 5. Resend: `POST /api/v1/platform/tenants/{id}/invite`.
+
+## Forgot password (platform + tenant)
+
+1. User opens `/forgot-password` and submits email.
+2. Server resolves **platform first**, then tenant by email (same as central login).
+3. Brevo sends a one-time link to `/reset-password?token=...` (TTL 1 hour).
+4. User sets a new password (min 8 chars) → redirect to `/login?reset=1`.
+5. API never reveals whether the email exists (anti-enumeration), except optionally `debugResetUrl` in development.
 
 ## API surfaces
 
