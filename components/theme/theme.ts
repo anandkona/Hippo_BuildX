@@ -1,4 +1,4 @@
-﻿export const themes = {
+export const themes = {
   modernLight: {
     id: "modernLight",
     name: "Modern Light",
@@ -76,6 +76,19 @@
       warning: "#D97706", danger: "#DC2626", info: "#4F46E5"
     },
     radius: "14px"
+  },
+  tenantPortal: {
+    id: "tenantPortal",
+    name: "Tenant Portal",
+    mode: "light",
+    colors: {
+      primary: "#4F46E5", primaryHover: "#4338CA", primarySoft: "rgba(99,102,241,0.15)",
+      background: "#F1F5F9", surface: "#F8FAFC", surfaceMuted: "#E2E8F0",
+      sidebar: "#E2E8F0", sidebarText: "#64748B", text: "#1E293B",
+      textMuted: "#94A3B8", border: "rgba(203,213,225,0.8)", success: "#16A34A",
+      warning: "#F59E0B", danger: "#DC2626", info: "#0284C7"
+    },
+    radius: "12px"
   }
 };
 

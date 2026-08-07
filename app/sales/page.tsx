@@ -35,17 +35,17 @@ export default function SalesPage() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
             <Statistic title="Monthly Revenue" value={45600} prefix="₹" valueStyle={{ color: "#3f8600" }} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
              <Statistic title="Pending Invoices" value={12} valueStyle={{ color: "#cf1322" }} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
-           <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+           <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
              <Statistic title="Avg Order Value" value={350} prefix="₹" valueStyle={{ color: "#1890ff" }} />
           </Card>
         </Col>
@@ -53,7 +53,7 @@ export default function SalesPage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={16}>
-          <Card title="Sales History" bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <Card title="Sales History" variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
                 <Space wrap>
                   <Input placeholder="Search invoices..." prefix={<SearchOutlined />} style={{ width: 250 }} />
@@ -65,7 +65,7 @@ export default function SalesPage() {
           </Card>
         </Col>
         <Col xs={24} xl={8}>
-          <Card title="Sales Trend" bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)", height: "100%" }}>
+          <Card title="Sales Trend" variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)", height: "100%" }}>
              <div style={{ height: 300 }}>
                <ResponsiveContainer width="100%" height="100%">
                  <LineChart data={salesData}>
@@ -83,3 +83,4 @@ export default function SalesPage() {
     </div>
   );
 }
+

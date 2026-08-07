@@ -26,8 +26,11 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json(flat);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get settings error:', error);
+    if (error?.code === '42P01' || error?.message?.includes('relation "tenant_settings" does not exist')) {
+      return NextResponse.json({});
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

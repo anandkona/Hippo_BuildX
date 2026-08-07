@@ -28,7 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!isFullscreen) {
-      applyTheme("corporateBlue");
+      applyTheme("tenantPortal");
     }
   }, [isFullscreen]);
 

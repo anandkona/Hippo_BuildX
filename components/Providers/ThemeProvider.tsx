@@ -17,9 +17,15 @@ const ThemeContext = createContext<ThemeContextProps>({
 
 export const useTheme = () => useContext(ThemeContext);
 
+function getPrimaryColor(): string {
+  if (typeof document === "undefined") return "#4f46e5";
+  return getComputedStyle(document.documentElement).getPropertyValue("--ui-primary").trim() || "#4f46e5";
+}
+
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>("light");
   const [mounted, setMounted] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState("#4f46e5");
 
   useEffect(() => {
     const savedMode = localStorage.getItem("theme-mode") as ThemeMode | null;
@@ -27,6 +33,14 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
       setMode(savedMode);
     }
     setMounted(true);
+
+    const updateColor = () => setPrimaryColor(getPrimaryColor());
+    updateColor();
+
+    const observer = new MutationObserver(updateColor);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+    return () => observer.disconnect();
   }, []);
 
   const toggleTheme = () => {
@@ -50,7 +64,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
         theme={{
           algorithm: mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
           token: {
-            colorPrimary: "#1890ff",
+            colorPrimary: primaryColor,
             borderRadius: 8,
             fontFamily: "var(--font-geist-sans), sans-serif",
           },

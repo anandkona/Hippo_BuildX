@@ -14,7 +14,7 @@ export default function SettingsPage() {
       
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={16}>
-          <Card title="General Settings" bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)", marginBottom: 24 }}>
+          <Card title="General Settings" variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)", marginBottom: 24 }}>
             <Form form={form} layout="vertical" initialValues={{ 
               companyName: "BuildEx", 
               language: "en", 
@@ -71,7 +71,7 @@ export default function SettingsPage() {
         </Col>
 
         <Col xs={24} lg={8}>
-          <Card title="Role Management" bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <Card title="Role Management" variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
             <p>Manage default permissions for user roles.</p>
             
             <div style={{ marginBottom: 16 }}>
@@ -96,3 +96,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

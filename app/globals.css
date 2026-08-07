@@ -1,25 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f7fb;
-  --foreground: #0f172a;
-  --ui-primary: #1d4ed8;
-  --ui-primary-hover: #1e40af;
-  --ui-primary-soft: #dbeafe;
+  --background: #f1f5f9;
+  --foreground: #1e293b;
+  --ui-primary: #4f46e5;
+  --ui-primary-hover: #4338ca;
+  --ui-primary-soft: rgba(99,102,241,0.15);
   --ui-primary-foreground: #ffffff;
-  --ui-background: #f4f7fb;
-  --ui-surface: #ffffff;
-  --ui-surface-muted: #eaf0f8;
-  --ui-sidebar: #082f49;
-  --ui-sidebar-text: #e0f2fe;
-  --ui-text: #0f172a;
-  --ui-text-muted: #64748b;
-  --ui-border: #d7e0ec;
-  --ui-success: #15803d;
-  --ui-warning: #d97706;
-  --ui-danger: #b91c1c;
-  --ui-info: #0369a1;
-  --ui-radius: 10px;
+  --ui-background: #f1f5f9;
+  --ui-surface: #f8fafc;
+  --ui-surface-muted: #e2e8f0;
+  --ui-sidebar: #e2e8f0;
+  --ui-sidebar-text: #64748b;
+  --ui-text: #1e293b;
+  --ui-text-muted: #94a3b8;
+  --ui-border: rgba(203,213,225,0.8);
+  --ui-success: #16a34a;
+  --ui-warning: #f59e0b;
+  --ui-danger: #dc2626;
+  --ui-info: #0284c7;
+  --ui-radius: 12px;
 }
 
 .dark {

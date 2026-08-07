@@ -444,6 +444,59 @@ CREATE INDEX IF NOT EXISTS idx_drawings_project_current ON %SCHEMA%.drawings(pro
 CREATE INDEX IF NOT EXISTS idx_rfis_project_current ON %SCHEMA%.rfis(project_id, is_current) WHERE deleted_at IS NULL;
 `,
   },
+  {
+    name: '003_crm_foundation',
+    sql: `
+CREATE TABLE IF NOT EXISTS %SCHEMA%.leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255),
+  phone VARCHAR(50),
+  status VARCHAR(50) NOT NULL DEFAULT 'new',
+  source VARCHAR(100),
+  assigned_to UUID,
+  expected_revenue NUMERIC(16, 2),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  created_by UUID,
+  updated_by UUID
+);
+
+CREATE TABLE IF NOT EXISTS %SCHEMA%.lead_activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL,
+  lead_id UUID NOT NULL REFERENCES %SCHEMA%.leads(id),
+  activity_type VARCHAR(50) NOT NULL,
+  description TEXT NOT NULL,
+  performed_by UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS %SCHEMA%.bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL,
+  lead_id UUID NOT NULL REFERENCES %SCHEMA%.leads(id),
+  project_id UUID NOT NULL REFERENCES %SCHEMA%.projects(id),
+  unit_id UUID NOT NULL REFERENCES %SCHEMA%.units(id),
+  status VARCHAR(50) NOT NULL DEFAULT 'draft',
+  booking_amount NUMERIC(16, 2) NOT NULL DEFAULT 0,
+  booking_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  created_by UUID,
+  updated_by UUID
+);
+
+CREATE INDEX IF NOT EXISTS idx_leads_tenant_status ON %SCHEMA%.leads(tenant_id, status) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_lead_activities_lead ON %SCHEMA%.lead_activities(lead_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_tenant_project ON %SCHEMA%.bookings(tenant_id, project_id) WHERE deleted_at IS NULL;
+`,
+  },
 ];
 
 /**

@@ -75,7 +75,7 @@ export default function SubscriptionPage() {
           <Col xs={24} md={8} key={plan.id}>
             <Card
               title={<><CrownOutlined style={{ color: plan.color }} /> {plan.name}</>}
-              bordered={false}
+              variant="borderless"
               style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
               actions={[
                 <Button key="edit" type="text" icon={<EditOutlined />} onClick={() => handleEditPlan(plan)}>Edit</Button>,
@@ -171,3 +171,4 @@ export default function SubscriptionPage() {
     </div>
   );
 }
+

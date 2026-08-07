@@ -91,3 +91,37 @@ export const projects = pgTable('projects', {
   endDate: timestamp('end_date', { withTimezone: false, mode: 'string' }),
   metadata: jsonb('metadata').notNull().default({}),
 });
+
+/** Phase 3 — CRM & Bookings */
+export const leads = pgTable('leads', {
+  ...tenantBaseColumns,
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
+  status: varchar('status', { length: 50 }).notNull().default('new'),
+  source: varchar('source', { length: 100 }),
+  assignedTo: uuid('assigned_to').references(() => users.id),
+  expectedRevenue: varchar('expected_revenue'), // Using varchar/numeric mapped to string
+  notes: text('notes'),
+});
+
+export const leadActivities = pgTable('lead_activities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull(),
+  leadId: uuid('lead_id').notNull().references(() => leads.id),
+  activityType: varchar('activity_type', { length: 50 }).notNull(),
+  description: text('description').notNull(),
+  performedBy: uuid('performed_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const bookings = pgTable('bookings', {
+  ...tenantBaseColumns,
+  leadId: uuid('lead_id').notNull().references(() => leads.id),
+  projectId: uuid('project_id').notNull().references(() => projects.id),
+  unitId: uuid('unit_id').notNull(), // Assuming units table is dynamically resolved or added later
+  status: varchar('status', { length: 50 }).notNull().default('draft'),
+  bookingAmount: varchar('booking_amount').notNull().default('0'),
+  bookingDate: timestamp('booking_date', { withTimezone: true }).notNull().defaultNow(),
+  notes: text('notes'),
+});

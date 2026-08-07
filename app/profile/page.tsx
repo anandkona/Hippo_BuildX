@@ -12,7 +12,7 @@ export default function ProfilePage() {
       <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>User Profile</h2>
       <Row gutter={[24, 24]}>
         <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)", textAlign: "center" }}>
+          <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)", textAlign: "center" }}>
             <Avatar size={120} icon={<UserOutlined />} src="/avatar.png" style={{ marginBottom: 16 }} />
             <h3>Admin User</h3>
             <p style={{ color: "gray" }}>Super Administrator</p>
@@ -30,7 +30,7 @@ export default function ProfilePage() {
         </Col>
         
         <Col xs={24} md={16}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
             <Tabs defaultActiveKey="1" items={[
               {
                 key: "1",
@@ -109,3 +109,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

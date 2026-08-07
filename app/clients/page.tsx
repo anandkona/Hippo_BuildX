@@ -148,7 +148,7 @@ export default function ClientsPage() {
   ];
 
   return (
-    <Card title={<h2 style={{ margin: 0, fontSize: 20 }}>Clients Management</h2>} bordered={false} style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+    <Card title={<h2 style={{ margin: 0, fontSize: 20 }}>Clients Management</h2>} variant="borderless" style={{ borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
         <Input
           placeholder="Search clients..."
@@ -225,3 +225,4 @@ export default function ClientsPage() {
     </Card>
   );
 }
+

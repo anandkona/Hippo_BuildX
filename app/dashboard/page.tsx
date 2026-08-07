@@ -140,7 +140,7 @@ export default function Dashboard() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <Statistic
               title="Total Users"
               value={users.length}
@@ -151,7 +151,7 @@ export default function Dashboard() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <Statistic
               title="Active Roles"
               value={activeRoles}
@@ -161,7 +161,7 @@ export default function Dashboard() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <Statistic
               title="Channels"
               value={activeChannels}
@@ -172,7 +172,7 @@ export default function Dashboard() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <Statistic
               title="System Status"
               value="Operational"
@@ -187,7 +187,7 @@ export default function Dashboard() {
         <Col xs={24} lg={16}>
           <Card
             title="Recent Users"
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
           >
             {recentUsers.length > 0 ? (
@@ -206,7 +206,7 @@ export default function Dashboard() {
         <Col xs={24} lg={8}>
           <Card
             title="Quick Actions"
-            bordered={false}
+            variant="borderless"
             style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -268,3 +268,4 @@ export default function Dashboard() {
     </Spin>
   );
 }
+

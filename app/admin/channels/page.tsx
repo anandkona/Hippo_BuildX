@@ -173,7 +173,7 @@ export default function ChannelsPage() {
     return (
       <Card
         key={type}
-        bordered={false}
+        variant="borderless"
         style={{
           borderRadius: 12,
           boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
@@ -405,3 +405,4 @@ export default function ChannelsPage() {
     </div>
   );
 }
+

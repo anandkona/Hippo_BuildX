@@ -161,7 +161,7 @@ export default function UsersPage() {
       render: (_: unknown, record: User) => (
         <Space>
           <Avatar
-            style={{ backgroundColor: "#1890ff" }}
+            style={{ backgroundColor: "var(--ui-primary)" }}
             icon={<UserOutlined />}
           />
           <div>
@@ -259,7 +259,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+      <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
         <div
           style={{
             display: "flex",
@@ -412,3 +412,4 @@ export default function UsersPage() {
     </div>
   );
 }
+

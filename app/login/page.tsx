@@ -2,6 +2,7 @@
 
 import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 /** Hardcoded colors so email/password stay visible before any theme JS runs */
 const ui = {
@@ -25,6 +26,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -189,16 +191,37 @@ function LoginForm() {
                 Forgot password?
               </a>
             </div>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              style={inputStyle}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: 14,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: ui.muted,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -249,6 +272,23 @@ function LoginForm() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          bottom: 24,
+          width: "100%",
+          textAlign: "center",
+          fontSize: 12,
+          fontWeight: 600,
+          color: ui.muted,
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          zIndex: 10,
+        }}
+      >
+        Powered by Hippoclouds
       </div>
     </div>
   );

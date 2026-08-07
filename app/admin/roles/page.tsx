@@ -431,7 +431,7 @@ export default function RolesPage() {
         </div>
       </div>
 
-      <Card bordered={false} style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+      <Card variant="borderless" style={{ borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
         <div
           style={{
             display: "flex",
@@ -556,3 +556,4 @@ export default function RolesPage() {
     </div>
   );
 }
+

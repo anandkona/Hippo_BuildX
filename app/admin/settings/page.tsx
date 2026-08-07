@@ -18,7 +18,7 @@ import {
   Space,
   Tag,
 } from "antd";
-import { SaveOutlined, ReloadOutlined, GlobalOutlined, BulbOutlined, AppstoreOutlined } from "@ant-design/icons";
+import { SaveOutlined, ReloadOutlined, GlobalOutlined, BulbOutlined, AppstoreOutlined, UploadOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -171,7 +171,7 @@ export default function AdminSettingsPage() {
                     <span>General</span>
                   </Space>
                 }
-                bordered={false}
+                variant="borderless"
                 style={cardStyle}
               >
                 <Form.Item
@@ -182,10 +182,13 @@ export default function AdminSettingsPage() {
                   <Input placeholder="Your company name" />
                 </Form.Item>
                 <Form.Item name="logo_url" label="Logo URL">
-                  <Input
-                    placeholder="https://example.com/logo.png"
-                    onChange={(e) => setLogoPreview(e.target.value)}
-                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Input
+                      placeholder="https://example.com/logo.png"
+                      onChange={(e) => setLogoPreview(e.target.value)}
+                    />
+                    <Button icon={<UploadOutlined />}>Upload Icon</Button>
+                  </div>
                 </Form.Item>
                 <Row gutter={16}>
                   <Col span={12}>
@@ -221,7 +224,7 @@ export default function AdminSettingsPage() {
                     <span>Branding</span>
                   </Space>
                 }
-                bordered={false}
+                variant="borderless"
                 style={cardStyle}
               >
                 <Row gutter={16}>
@@ -273,7 +276,7 @@ export default function AdminSettingsPage() {
                     <span>Feature Flags</span>
                   </Space>
                 }
-                bordered={false}
+                variant="borderless"
                 style={cardStyle}
               >
                 <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
@@ -319,3 +322,4 @@ const toggleLabelStyle: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 500,
 };
+
